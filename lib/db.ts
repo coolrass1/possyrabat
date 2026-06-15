@@ -15,6 +15,7 @@ export function initializeDb() {
       name TEXT,
       phone TEXT,
       photo_url TEXT,
+      parcel_count INTEGER DEFAULT 0,
       role TEXT DEFAULT 'member',
       created_at INTEGER NOT NULL
     );

@@ -26,6 +26,15 @@ export function initializeDb() {
       created_at INTEGER NOT NULL,
       FOREIGN KEY (member_id) REFERENCES members(id)
     );
+
+    CREATE TABLE IF NOT EXISTS estate_maps (
+      id TEXT PRIMARY KEY,
+      image_data TEXT NOT NULL,
+      caption TEXT,
+      uploaded_by TEXT NOT NULL,
+      uploaded_at INTEGER NOT NULL,
+      FOREIGN KEY (uploaded_by) REFERENCES members(id)
+    );
   `);
 }
 

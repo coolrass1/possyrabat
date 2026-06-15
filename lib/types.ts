@@ -21,3 +21,11 @@ export interface AuthResult {
   error?: string;
   session?: Session;
 }
+
+export interface EstateMap {
+  id: string;
+  image_data: string;
+  caption: string | null;
+  uploaded_by: string;
+  uploaded_at: number;
+}

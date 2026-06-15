@@ -3,6 +3,8 @@ export interface Member {
   email: string;
   password_hash: string;
   name: string | null;
+  phone: string | null;
+  photo_url: string | null;
   role: 'member' | 'committee' | 'owner';
   created_at: number;
 }

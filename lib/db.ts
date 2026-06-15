@@ -13,6 +13,8 @@ export function initializeDb() {
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       name TEXT,
+      phone TEXT,
+      photo_url TEXT,
       role TEXT DEFAULT 'member',
       created_at INTEGER NOT NULL
     );

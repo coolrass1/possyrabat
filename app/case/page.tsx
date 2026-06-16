@@ -390,20 +390,6 @@ export default function CasePage() {
   if (!caseData) {
     return (
       <div className="min-h-screen bg-[#16291F]">
-        <nav className="bg-[#0d1a13] text-[#F3ECDD] p-4 shadow-md">
-          <div className="max-w-6xl mx-auto flex justify-between items-center">
-            <h1 className="text-2xl font-bold font-serif">Possyrabat</h1>
-            <button
-              onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                router.push('/login');
-              }}
-              className="px-4 py-2 bg-[#B5532E] hover:bg-[#9d4520] rounded-md transition-colors"
-            >
-              Sign Out
-            </button>
-          </div>
-        </nav>
         <main className="max-w-6xl mx-auto p-8">
           <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8">
             {showCaseForm && userRole !== 'member' ? (
@@ -435,26 +421,6 @@ export default function CasePage() {
 
   return (
     <div className="min-h-screen bg-[#16291F]">
-      <nav className="bg-[#0d1a13] text-[#F3ECDD] p-4 shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold font-serif">Possyrabat</h1>
-          <div className="flex gap-4">
-            <a href="/" className="px-4 py-2 hover:bg-[#1a3a28] rounded-md transition">Home</a>
-            <a href="/land" className="px-4 py-2 hover:bg-[#1a3a28] rounded-md transition">Land</a>
-            <a href="/contributions" className="px-4 py-2 hover:bg-[#1a3a28] rounded-md transition">Contributions</a>
-            <a href="/spending" className="px-4 py-2 hover:bg-[#1a3a28] rounded-md transition">Spending</a>
-            <button
-              onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                router.push('/login');
-              }}
-              className="px-4 py-2 bg-[#B5532E] hover:bg-[#9d4520] rounded-md transition-colors"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </nav>
 
       <main className="max-w-6xl mx-auto p-8">
         {/* Case Header */}

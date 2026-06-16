@@ -2,7 +2,7 @@
 
 import { randomUUID } from 'crypto';
 import db from './db';
-import { Meeting, MeetingDecision } from './types';
+import { Meeting, MeetingDecision, MeetingAction } from './types';
 
 export async function createMeeting(data: {
   date: number;
@@ -95,6 +95,69 @@ export async function getMeetingDecisions(meetingId: string): Promise<MeetingDec
     decided_by: row.decided_by,
     created_at: row.created_at,
   }));
+}
+
+function rowToAction(row: any): MeetingAction {
+  return {
+    id: row.id,
+    meeting_id: row.meeting_id,
+    task: row.task,
+    assigned_to: row.assigned_to ?? null,
+    due_date: row.due_date ?? null,
+    status: row.status,
+    created_at: row.created_at,
+  };
+}
+
+export async function addMeetingAction(data: {
+  meeting_id: string;
+  task: string;
+  assigned_to: string | null;
+  due_date: number | null;
+}): Promise<MeetingAction> {
+  const id = randomUUID();
+  const now = Date.now();
+
+  db.prepare(`
+    INSERT INTO meeting_actions (id, meeting_id, task, assigned_to, due_date, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, data.meeting_id, data.task, data.assigned_to, data.due_date, 'open', now);
+
+  return {
+    id,
+    meeting_id: data.meeting_id,
+    task: data.task,
+    assigned_to: data.assigned_to,
+    due_date: data.due_date,
+    status: 'open',
+    created_at: now,
+  };
+}
+
+export async function getMeetingActions(meetingId: string): Promise<MeetingAction[]> {
+  const rows = db.prepare(`
+    SELECT * FROM meeting_actions
+    WHERE meeting_id = ? AND deleted_at IS NULL
+    ORDER BY created_at ASC
+  `).all(meetingId) as any[];
+  return rows.map(rowToAction);
+}
+
+export async function setMeetingActionStatus(
+  actionId: string,
+  status: 'open' | 'done'
+): Promise<MeetingAction> {
+  db.prepare('UPDATE meeting_actions SET status = ? WHERE id = ?').run(status, actionId);
+  return rowToAction(db.prepare('SELECT * FROM meeting_actions WHERE id = ?').get(actionId));
+}
+
+export async function getOpenMeetingActions(): Promise<MeetingAction[]> {
+  const rows = db.prepare(`
+    SELECT * FROM meeting_actions
+    WHERE status = 'open' AND deleted_at IS NULL
+    ORDER BY due_date ASC, created_at ASC
+  `).all() as any[];
+  return rows.map(rowToAction);
 }
 
 export async function getAllMeetings(): Promise<Meeting[]> {

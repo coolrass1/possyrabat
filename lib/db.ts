@@ -201,6 +201,19 @@ export function initializeDb() {
       FOREIGN KEY (decided_by) REFERENCES members(id)
     );
 
+    CREATE TABLE IF NOT EXISTS meeting_actions (
+      id TEXT PRIMARY KEY,
+      meeting_id TEXT NOT NULL,
+      task TEXT NOT NULL,
+      assigned_to TEXT,
+      due_date INTEGER,
+      status TEXT DEFAULT 'open',
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (meeting_id) REFERENCES meetings(id),
+      FOREIGN KEY (assigned_to) REFERENCES members(id)
+    );
+
     CREATE TABLE IF NOT EXISTS events (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,

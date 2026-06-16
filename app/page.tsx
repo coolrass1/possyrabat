@@ -46,6 +46,13 @@ interface EstateMapData {
   caption: string | null;
 }
 
+interface OpenAction {
+  id: string;
+  task: string;
+  due_date: number | null;
+  status: string;
+}
+
 const AIM_LABELS: Record<string, string> = {
   court_case: 'Court Case',
   construction: 'Construction',
@@ -59,6 +66,7 @@ export default function Home() {
   const [fundData, setFundData] = useState<FundData | null>(null);
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
   const [estateMap, setEstateMap] = useState<EstateMapData | null>(null);
+  const [openActions, setOpenActions] = useState<OpenAction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -111,6 +119,16 @@ export default function Home() {
             }
           } catch (err) {
             console.error('Error fetching estate map:', err);
+          }
+
+          // Fetch open action items ("what we must do next")
+          try {
+            const actionsRes = await fetch('/api/meetings/actions/open');
+            if (actionsRes.ok) {
+              setOpenActions(await actionsRes.json());
+            }
+          } catch (err) {
+            console.error('Error fetching open actions:', err);
           }
         } else {
           router.push('/login');
@@ -288,6 +306,35 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          {/* Pillar 4: What we must do next */}
+          <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-[#16291F] mb-4" style={{ fontFamily: 'var(--font-fraunces)' }}>
+              What We Must Do Next
+            </h3>
+            {openActions.length > 0 ? (
+              <ul className="space-y-2">
+                {openActions.slice(0, 5).map((a) => (
+                  <li key={a.id} className="flex items-start gap-2 text-[#16291F]">
+                    <span className="mt-1 w-2 h-2 rounded-full bg-[#C79A45] shrink-0" />
+                    <span className="text-sm">
+                      {a.task}
+                      {a.due_date && (
+                        <span className="text-[#B5532E] font-semibold">
+                          {' '}· due {new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[#7C9A5E] text-sm">No open action items.</p>
+            )}
+            <a href="/meetings" className="text-[#C79A45] font-semibold text-sm hover:underline block mt-4">
+              View Meetings →
+            </a>
+          </div>
         </div>
 
         {/* Activity Feed */}

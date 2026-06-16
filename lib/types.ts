@@ -137,6 +137,16 @@ export interface MeetingDecision {
   created_at: number;
 }
 
+export interface MeetingAction {
+  id: string;
+  meeting_id: string;
+  task: string;
+  assigned_to: string | null;
+  due_date: number | null;
+  status: 'open' | 'done';
+  created_at: number;
+}
+
 export interface Event {
   id: string;
   title: string;

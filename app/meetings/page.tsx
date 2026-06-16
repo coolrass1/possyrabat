@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Meeting, MeetingDecision } from '@/lib/types';
+import { Meeting, MeetingDecision, MeetingAction } from '@/lib/types';
 
 export default function MeetingsPage() {
   const router = useRouter();
@@ -12,6 +12,8 @@ export default function MeetingsPage() {
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [decisions, setDecisions] = useState<MeetingDecision[]>([]);
   const [newDecisionText, setNewDecisionText] = useState('');
+  const [actions, setActions] = useState<MeetingAction[]>([]);
+  const [newActionTask, setNewActionTask] = useState('');
 
   useEffect(() => {
     const checkSession = async () => {
@@ -52,8 +54,48 @@ export default function MeetingsPage() {
       if (res.ok) {
         setDecisions(await res.json());
       }
+      const actRes = await fetch(`/api/meetings/${meeting.id}/actions`);
+      if (actRes.ok) {
+        setActions(await actRes.json());
+      }
     } catch (err) {
-      console.error('Error fetching decisions:', err);
+      console.error('Error fetching meeting details:', err);
+    }
+  };
+
+  const addAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMeeting || !newActionTask.trim()) return;
+    try {
+      const res = await fetch(`/api/meetings/${selectedMeeting.id}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task: newActionTask }),
+      });
+      if (res.ok) {
+        setActions([...actions, await res.json()]);
+        setNewActionTask('');
+      }
+    } catch (err) {
+      console.error('Error adding action:', err);
+    }
+  };
+
+  const toggleAction = async (action: MeetingAction) => {
+    if (!selectedMeeting) return;
+    const next = action.status === 'open' ? 'done' : 'open';
+    try {
+      const res = await fetch(`/api/meetings/${selectedMeeting.id}/actions/${action.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setActions(actions.map((a) => (a.id === updated.id ? updated : a)));
+      }
+    } catch (err) {
+      console.error('Error toggling action:', err);
     }
   };
 
@@ -98,25 +140,6 @@ export default function MeetingsPage() {
 
   return (
     <div className="min-h-screen bg-[#16291F]">
-      <nav className="bg-[#0d1a13] text-[#F3ECDD] p-4 shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold font-serif">Possyrabat</h1>
-          <div className="flex gap-4">
-            <a href="/" className="px-4 py-2 hover:bg-[#1a3a28] rounded-md transition">Home</a>
-            <a href="/contributions" className="px-4 py-2 hover:bg-[#1a3a28] rounded-md transition">Contributions</a>
-            <a href="/spending" className="px-4 py-2 hover:bg-[#1a3a28] rounded-md transition">Spending</a>
-            <button
-              onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                router.push('/login');
-              }}
-              className="px-4 py-2 bg-[#B5532E] hover:bg-[#9d4520] rounded-md transition-colors"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </nav>
 
       <main className="max-w-6xl mx-auto p-8">
         <h2 className="text-3xl font-bold text-[#F3ECDD] mb-8 font-serif">Meetings</h2>
@@ -220,6 +243,68 @@ export default function MeetingsPage() {
                     >
                       Record Decision
                     </button>
+                  </form>
+                )}
+              </div>
+
+              {/* Action items */}
+              <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-6">
+                <h4 className="text-lg font-semibold text-[#16291F] mb-4">Action Items</h4>
+
+                {actions.length > 0 ? (
+                  <div className="space-y-3 mb-6">
+                    {actions.map((action) => (
+                      <div
+                        key={action.id}
+                        className="p-4 rounded-lg border-l-4 border-[#C79A45] bg-white flex items-start justify-between gap-3"
+                      >
+                        <div>
+                          <p className={`text-[#16291F] ${action.status === 'done' ? 'line-through opacity-60' : ''}`}>
+                            {action.task}
+                          </p>
+                          {action.due_date && (
+                            <p className="text-xs text-[#B5532E] mt-1">
+                              Due {formatDate(action.due_date)}
+                            </p>
+                          )}
+                        </div>
+                        {userRole !== 'member' && (
+                          <button
+                            onClick={() => toggleAction(action)}
+                            className={`px-3 py-1 rounded text-sm font-semibold shrink-0 ${
+                              action.status === 'done'
+                                ? 'bg-[#E8DCC8] text-[#16291F]'
+                                : 'bg-[#7C9A5E] text-white hover:bg-[#6a8a4f]'
+                            }`}
+                          >
+                            {action.status === 'done' ? 'Reopen' : 'Mark done'}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[#7C9A5E] text-center py-4">No action items yet</p>
+                )}
+
+                {userRole !== 'member' && (
+                  <form onSubmit={addAction} className="mt-6 pt-6 border-t border-[#E8DCC8]">
+                    <label className="block text-sm font-semibold text-[#16291F] mb-2">Add Action</label>
+                    <div className="flex gap-2">
+                      <input
+                        value={newActionTask}
+                        onChange={(e) => setNewActionTask(e.target.value)}
+                        placeholder="What needs doing, and by whom?"
+                        className="flex-1 px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!newActionTask.trim()}
+                        className="px-4 py-2 bg-[#C79A45] text-[#16291F] rounded-md font-semibold hover:bg-[#b8894a] disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
                   </form>
                 )}
               </div>

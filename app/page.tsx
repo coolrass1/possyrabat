@@ -29,6 +29,12 @@ interface FundData {
   };
 }
 
+const AIM_LABELS: Record<string, string> = {
+  court_case: 'Court Case',
+  construction: 'Construction',
+  security: 'Security',
+};
+
 export default function Home() {
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
@@ -58,17 +64,14 @@ export default function Home() {
             console.error('Error fetching case:', err);
           }
 
-          // Fetch fund data (will calculate in a real API endpoint)
-          // For now, we'll calculate from basic queries
+          // Fetch fund data
           try {
-            setFundData({
-              balance: 0,
-              totalContributions: 0,
-              totalExpenses: 0,
-              byAim: { court_case: 0, construction: 0, security: 0 },
-            });
+            const fundRes = await fetch('/api/fund');
+            if (fundRes.ok) {
+              setFundData(await fundRes.json());
+            }
           } catch (err) {
-            console.error('Error calculating fund data:', err);
+            console.error('Error fetching fund data:', err);
           }
         } else {
           router.push('/login');
@@ -111,7 +114,7 @@ export default function Home() {
 
       <main className="max-w-6xl mx-auto p-8">
         {/* Five Pillars Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
           {/* Pillar 1: Case Status */}
           {caseData && (
             <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-6">
@@ -152,7 +155,58 @@ export default function Home() {
             </div>
           )}
 
-          {/* Pillar 2: My Parcels */}
+          {/* Pillar 2: Fund & Balance */}
+          {fundData && (
+            <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-[#16291F] mb-4 font-serif">Shared Fund</h3>
+              <div className="space-y-4">
+                <div className="text-center">
+                  <p className="text-sm text-[#7C9A5E] font-semibold mb-1">Current Balance</p>
+                  <p className="text-4xl font-bold text-[#C79A45]">€{fundData.balance.toLocaleString()}</p>
+                </div>
+
+                {/* Three-way allocation bars */}
+                <div className="space-y-2">
+                  {Object.entries(fundData.byAim).map(([aim, amount]) => {
+                    const percent = fundData.totalExpenses > 0 ? (amount / fundData.totalExpenses) * 100 : 0;
+                    return (
+                      <div key={aim}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-semibold text-[#16291F]">
+                            {AIM_LABELS[aim]}
+                          </span>
+                          <span className="text-xs text-[#7C9A5E]">€{amount}</span>
+                        </div>
+                        <div className="w-full bg-[#E8DCC8] rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full transition-all ${
+                              aim === 'court_case'
+                                ? 'bg-[#B5532E]'
+                                : aim === 'construction'
+                                ? 'bg-[#C79A45]'
+                                : 'bg-[#7C9A5E]'
+                            }`}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="text-xs text-[#7C9A5E] pt-2 border-t border-[#E8DCC8]">
+                  <p>In: €{fundData.totalContributions.toLocaleString()}</p>
+                  <p>Out: €{fundData.totalExpenses.toLocaleString()}</p>
+                </div>
+
+                <a href="/spending" className="text-[#C79A45] font-semibold text-sm hover:underline block">
+                  View Full Ledger →
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Pillar 3: My Parcels */}
           {member && (
             <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-6">
               <h3 className="text-lg font-semibold text-[#16291F] mb-4 font-serif">My Land Holdings</h3>

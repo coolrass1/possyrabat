@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import db from '../lib/db';
 import { createCase } from '../app/api/case/actions';
+import { getFundSnapshot } from '../app/api/fund/snapshot';
 
 describe('Home Screen - Five Pillars', () => {
   let committeeId: string;
@@ -149,6 +150,45 @@ describe('Home Screen - Five Pillars', () => {
       ).get(monthStart) as any).total || 0;
 
       expect(thisMonthTotal).toBe(200);
+    });
+  });
+
+  describe('fund snapshot for dashboard', () => {
+    it('getFundSnapshot returns balance and allocation by aim', async () => {
+      const now = Date.now();
+
+      // Create contributions
+      db.prepare(`
+        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), memberId, 1000, now, committeeId, now);
+
+      // Create expenses with different aims
+      db.prepare(`
+        INSERT INTO expenses (id, description, amount, aim, date, recorded_by, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), 'Court fee', 200, 'court_case', now, committeeId, 'recorded', now);
+
+      db.prepare(`
+        INSERT INTO expenses (id, description, amount, aim, date, recorded_by, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), 'Fencing', 300, 'construction', now, committeeId, 'recorded', now);
+
+      db.prepare(`
+        INSERT INTO expenses (id, description, amount, aim, date, recorded_by, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), 'Guard', 150, 'security', now, committeeId, 'recorded', now);
+
+      // Get fund snapshot
+      const snapshot = await getFundSnapshot();
+
+      expect(snapshot).toBeDefined();
+      expect(snapshot.totalContributions).toBe(1000);
+      expect(snapshot.totalExpenses).toBe(650);
+      expect(snapshot.balance).toBe(350);
+      expect(snapshot.byAim.court_case).toBe(200);
+      expect(snapshot.byAim.construction).toBe(300);
+      expect(snapshot.byAim.security).toBe(150);
     });
   });
 });

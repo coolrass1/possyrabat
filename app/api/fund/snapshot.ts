@@ -1,0 +1,53 @@
+'use server';
+
+import db from '@/lib/db';
+
+export interface FundSnapshot {
+  totalContributions: number;
+  totalExpenses: number;
+  balance: number;
+  byAim: {
+    court_case: number;
+    construction: number;
+    security: number;
+  };
+}
+
+export async function getFundSnapshot(): Promise<FundSnapshot> {
+  // Get total contributions
+  const totalContributions =
+    ((db.prepare('SELECT SUM(amount) as total FROM contributions WHERE deleted_at IS NULL').get() as any)
+      .total || 0);
+
+  // Get total expenses
+  const totalExpenses =
+    ((db.prepare('SELECT SUM(amount) as total FROM expenses WHERE deleted_at IS NULL').get() as any)
+      .total || 0);
+
+  // Get expenses by aim
+  const courtCase =
+    ((db.prepare(
+      'SELECT SUM(amount) as total FROM expenses WHERE aim = ? AND deleted_at IS NULL'
+    ).get('court_case') as any).total || 0);
+
+  const construction =
+    ((db.prepare(
+      'SELECT SUM(amount) as total FROM expenses WHERE aim = ? AND deleted_at IS NULL'
+    ).get('construction') as any).total || 0);
+
+  const security =
+    ((db.prepare(
+      'SELECT SUM(amount) as total FROM expenses WHERE aim = ? AND deleted_at IS NULL'
+    ).get('security') as any).total || 0);
+
+  return {
+    totalContributions,
+    totalExpenses,
+    balance: totalContributions - totalExpenses,
+    byAim: {
+      court_case: courtCase,
+      construction,
+      security,
+    },
+  };
+}

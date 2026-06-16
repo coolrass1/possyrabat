@@ -46,6 +46,7 @@ export function initializeDb() {
       notes TEXT,
       recorded_by TEXT NOT NULL,
       created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
       FOREIGN KEY (member_id) REFERENCES members(id),
       FOREIGN KEY (recorded_by) REFERENCES members(id)
     );

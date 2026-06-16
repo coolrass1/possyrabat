@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import db from './db';
 import { Statement, EmailLog } from './types';
 import { getMemberById } from './auth';
+import { sendEmail } from './email';
 
 export async function generateStatement(year: number, month: number): Promise<Statement> {
   const id = randomUUID();
@@ -92,9 +93,6 @@ export async function generateStatement(year: number, month: number): Promise<St
 }
 
 export async function sendStatementEmail(memberId: string, statement: Statement): Promise<EmailLog> {
-  const id = randomUUID();
-  const now = Date.now();
-
   const member = getMemberById(memberId);
   if (!member) {
     throw new Error('Member not found');
@@ -104,25 +102,12 @@ export async function sendStatementEmail(memberId: string, statement: Statement)
     month: 'long',
     year: 'numeric',
   });
-  const subject = `Your ${monthName} Statement`;
-  const body = statement.html_content;
 
-  // Log email (stub service - just insert into DB)
-  db.prepare(`
-    INSERT INTO email_logs (id, to_email, subject, body, status, sent_at, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, member.email, subject, body, 'sent', now, now);
-
-  return {
-    id,
+  return sendEmail({
     to: member.email,
-    subject,
-    body,
-    status: 'sent',
-    sent_at: now,
-    error: null,
-    created_at: now,
-  };
+    subject: `Your ${monthName} Statement`,
+    body: statement.html_content,
+  });
 }
 
 function generateStatementHTML(

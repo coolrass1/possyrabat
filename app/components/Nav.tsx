@@ -26,6 +26,7 @@ const MEMBER_LINKS = [
 const COMMITTEE_LINKS = [
   { href: '/admin/members', label: 'Members' },
   { href: '/admin/arrears', label: 'Arrears' },
+  { href: '/admin/email', label: 'Email' },
   { href: '/admin/audit', label: 'Audit' },
 ];
 

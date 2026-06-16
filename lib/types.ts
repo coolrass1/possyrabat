@@ -63,6 +63,7 @@ export interface CaseDocument {
   id: string;
   case_id: string;
   filename: string;
+  mime_type: string | null;
   storage_path: string;
   uploaded_by: string;
   created_at: number;
@@ -136,6 +137,17 @@ export interface MeetingDecision {
   meeting_id: string;
   description: string;
   decided_by: string;
+  created_at: number;
+}
+
+export interface MeetingDocument {
+  id: string;
+  meeting_id: string;
+  filename: string;
+  kind: 'minutes' | 'report' | 'other';
+  mime_type: string | null;
+  storage_path: string;
+  uploaded_by: string;
   created_at: number;
 }
 

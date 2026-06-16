@@ -288,4 +288,54 @@ describe('Case Documents & Actions', () => {
       expect(actions[2].task).toBe('Task 3');
     });
   });
+
+  describe('upload validation & inline MIME', () => {
+    async function makeCase() {
+      return createCase(
+        {
+          title: 'Doc Case',
+          opposing_party: 'P',
+          court: 'C',
+          stage: 'filed' as const,
+          summary: null,
+          opened_date: Date.now(),
+          next_hearing_date: null,
+        },
+        committeeId
+      );
+    }
+
+    it('stores and returns the MIME type for inline serving', async () => {
+      const c = await makeCase();
+      const doc = await uploadCaseDocument(
+        { case_id: c.id, filename: 'evidence.png', fileContent: Buffer.from('img') },
+        committeeId
+      );
+      expect(doc.mime_type).toBe('image/png');
+
+      const file = await getCaseDocumentFile(doc.id);
+      expect(file!.mime_type).toBe('image/png');
+    });
+
+    it('rejects a disallowed file type', async () => {
+      const c = await makeCase();
+      await expect(
+        uploadCaseDocument(
+          { case_id: c.id, filename: 'evil.exe', fileContent: Buffer.from('x') },
+          committeeId
+        )
+      ).rejects.toThrow(/type/i);
+    });
+
+    it('rejects a file over the size cap', async () => {
+      const c = await makeCase();
+      const big = Buffer.alloc(25 * 1024 * 1024 + 1);
+      await expect(
+        uploadCaseDocument(
+          { case_id: c.id, filename: 'huge.pdf', fileContent: big },
+          committeeId
+        )
+      ).rejects.toThrow(/size|large|25/i);
+    });
+  });
 });

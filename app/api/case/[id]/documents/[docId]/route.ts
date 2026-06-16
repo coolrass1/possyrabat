@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
 import { deleteCaseDocument, getCaseDocumentFile } from '../../../documents-actions';
+import { isInlineMime } from '@/lib/uploads';
 
 export async function GET(
   request: NextRequest,
@@ -23,11 +24,12 @@ export async function GET(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
+    const disposition = isInlineMime(file.mime_type) ? 'inline' : 'attachment';
     return new NextResponse(new Uint8Array(file.content), {
       status: 200,
       headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${file.filename.replace(/"/g, '')}"`,
+        'Content-Type': file.mime_type,
+        'Content-Disposition': `${disposition}; filename="${file.filename.replace(/"/g, '')}"`,
       },
     });
   } catch (error) {

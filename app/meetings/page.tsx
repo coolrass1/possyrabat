@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Meeting, MeetingDecision, MeetingAction } from '@/lib/types';
+import { Meeting, MeetingDecision, MeetingAction, MeetingDocument } from '@/lib/types';
 
 export default function MeetingsPage() {
   const router = useRouter();
@@ -20,6 +20,12 @@ export default function MeetingsPage() {
     date: new Date().toISOString().slice(0, 16), // datetime-local
     notes: '',
   });
+  const [documents, setDocuments] = useState<MeetingDocument[]>([]);
+  const [docKind, setDocKind] = useState<'minutes' | 'report' | 'other'>('report');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docNotify, setDocNotify] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -90,9 +96,53 @@ export default function MeetingsPage() {
       if (actRes.ok) {
         setActions(await actRes.json());
       }
+      const docRes = await fetch(`/api/meetings/${meeting.id}/documents`);
+      if (docRes.ok) {
+        setDocuments(await docRes.json());
+      }
     } catch (err) {
       console.error('Error fetching meeting details:', err);
     }
+  };
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMeeting || !docFile) return;
+    setDocError(null);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', docFile);
+      fd.append('kind', docKind);
+      fd.append('notify', docNotify ? 'true' : 'false');
+      const res = await fetch(`/api/meetings/${selectedMeeting.id}/documents`, {
+        method: 'POST',
+        body: fd,
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setDocuments([created, ...documents]);
+        setDocFile(null);
+        setDocNotify(false);
+        (document.getElementById('meeting-doc-file') as HTMLInputElement | null)?.value &&
+          ((document.getElementById('meeting-doc-file') as HTMLInputElement).value = '');
+      } else {
+        setDocError((await res.json()).error || 'Upload failed');
+      }
+    } catch (err) {
+      setDocError('Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!selectedMeeting) return;
+    if (!confirm('Delete this document?')) return;
+    const res = await fetch(`/api/meetings/${selectedMeeting.id}/documents/${docId}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) setDocuments(documents.filter((d) => d.id !== docId));
   };
 
   const addAction = async (e: React.FormEvent) => {
@@ -386,6 +436,84 @@ export default function MeetingsPage() {
                         Add
                       </button>
                     </div>
+                  </form>
+                )}
+              </div>
+
+              {/* Documents & reports */}
+              <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-6">
+                <h4 className="text-lg font-semibold text-[#16291F] mb-4">Documents & Reports</h4>
+
+                {documents.length > 0 ? (
+                  <div className="space-y-2 mb-6">
+                    {documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="p-3 rounded-lg border border-[#E8DCC8] bg-white flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="px-2 py-0.5 rounded text-xs font-semibold capitalize bg-[#7C9A5E] text-white shrink-0">
+                            {doc.kind}
+                          </span>
+                          <a
+                            href={`/api/meetings/${selectedMeeting.id}/documents/${doc.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#16291F] font-medium truncate hover:underline"
+                          >
+                            {doc.filename}
+                          </a>
+                        </div>
+                        {userRole !== 'member' && (
+                          <button
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            className="px-3 py-1 rounded text-sm font-semibold shrink-0 bg-[#B5532E] text-white hover:bg-[#9d4520]"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[#7C9A5E] text-center py-4">No documents yet</p>
+                )}
+
+                {userRole !== 'member' && (
+                  <form onSubmit={handleUploadDocument} className="mt-6 pt-6 border-t border-[#E8DCC8] space-y-3">
+                    <label className="block text-sm font-semibold text-[#16291F]">Add document or report</label>
+                    {docError && (
+                      <p className="text-sm text-[#B5532E] font-semibold">{docError}</p>
+                    )}
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <input
+                        id="meeting-doc-file"
+                        type="file"
+                        onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                        className="text-sm text-[#16291F]"
+                      />
+                      <select
+                        value={docKind}
+                        onChange={(e) => setDocKind(e.target.value as 'minutes' | 'report' | 'other')}
+                        className="px-3 py-2 border border-[#E8DCC8] rounded-md text-[#16291F] bg-white"
+                      >
+                        <option value="report">Report</option>
+                        <option value="minutes">Minutes</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-[#16291F]">
+                      <input type="checkbox" checked={docNotify} onChange={(e) => setDocNotify(e.target.checked)} />
+                      Email members about this
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={!docFile || uploading}
+                      className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md font-semibold hover:bg-[#6a8a4f] disabled:opacity-50"
+                    >
+                      {uploading ? 'Uploading…' : 'Upload'}
+                    </button>
+                    <p className="text-xs text-[#7C9A5E]">Accepted: PDF, Word, Excel, PowerPoint, images, txt, csv · max 25 MB</p>
                   </form>
                 )}
               </div>

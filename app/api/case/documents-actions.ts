@@ -5,6 +5,7 @@ import { writeFileSync, readFileSync, mkdirSync, unlinkSync, existsSync } from '
 import { join } from 'path';
 import db from '@/lib/db';
 import { CaseDocument, CaseAction } from '@/lib/types';
+import { validateUpload, mimeForFilename } from '@/lib/uploads';
 
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'case-documents');
 
@@ -19,6 +20,7 @@ function rowToDocument(row: any): CaseDocument {
     id: row.id,
     case_id: row.case_id,
     filename: row.filename,
+    mime_type: row.mime_type ?? null,
     storage_path: row.storage_path,
     uploaded_by: row.uploaded_by,
     created_at: row.created_at,
@@ -47,8 +49,14 @@ export async function uploadCaseDocument(
   },
   committeeId: string
 ): Promise<CaseDocument> {
+  const check = validateUpload(data.filename, data.fileContent.length);
+  if (!check.ok) {
+    throw new Error(check.error);
+  }
+
   const id = randomUUID();
   const now = Date.now();
+  const mimeType = mimeForFilename(data.filename);
 
   // Sanitize filename
   const safeName = `${id}-${data.filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
@@ -61,12 +69,13 @@ export async function uploadCaseDocument(
   // Record in database
   db.prepare(`
     INSERT INTO case_documents (
-      id, case_id, filename, storage_path, uploaded_by, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?)
+      id, case_id, filename, mime_type, storage_path, uploaded_by, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.case_id,
     data.filename,
+    mimeType,
     storagePath,
     committeeId,
     now
@@ -76,6 +85,7 @@ export async function uploadCaseDocument(
     id,
     case_id: data.case_id,
     filename: data.filename,
+    mime_type: mimeType,
     storage_path: storagePath,
     uploaded_by: committeeId,
     created_at: now,
@@ -94,7 +104,7 @@ export async function getCaseDocuments(caseId: string): Promise<CaseDocument[]> 
 
 export async function getCaseDocumentFile(
   documentId: string
-): Promise<{ filename: string; content: Buffer } | null> {
+): Promise<{ filename: string; mime_type: string; content: Buffer } | null> {
   const doc = db.prepare(`
     SELECT * FROM case_documents WHERE id = ? AND deleted_at IS NULL
   `).get(documentId) as any;
@@ -105,6 +115,7 @@ export async function getCaseDocumentFile(
 
   return {
     filename: doc.filename,
+    mime_type: doc.mime_type || mimeForFilename(doc.filename),
     content: readFileSync(doc.storage_path),
   };
 }

@@ -201,6 +201,20 @@ export function initializeDb() {
       FOREIGN KEY (decided_by) REFERENCES members(id)
     );
 
+    CREATE TABLE IF NOT EXISTS meeting_documents (
+      id TEXT PRIMARY KEY,
+      meeting_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'other',
+      mime_type TEXT,
+      storage_path TEXT NOT NULL,
+      uploaded_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (meeting_id) REFERENCES meetings(id),
+      FOREIGN KEY (uploaded_by) REFERENCES members(id)
+    );
+
     CREATE TABLE IF NOT EXISTS meeting_actions (
       id TEXT PRIMARY KEY,
       meeting_id TEXT NOT NULL,
@@ -294,6 +308,7 @@ export function initializeDb() {
   addColumn(`ALTER TABLE settings ADD COLUMN rules_text TEXT`);
   addColumn(`ALTER TABLE cases ADD COLUMN lawyer_name TEXT`);
   addColumn(`ALTER TABLE cases ADD COLUMN lawyer_contact TEXT`);
+  addColumn(`ALTER TABLE case_documents ADD COLUMN mime_type TEXT`);
 }
 
 // Ensure the schema exists whenever the db module is loaded (idempotent).

@@ -65,7 +65,12 @@ export async function POST(
     );
 
     return NextResponse.json(document, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
+    // Validation failures (type/size) surface as 400; everything else 500
+    const message = error?.message || 'Internal server error';
+    if (/type|size|large|25/i.test(message)) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
     console.error('Document upload error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

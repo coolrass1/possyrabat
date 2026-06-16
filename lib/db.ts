@@ -150,6 +150,31 @@ export function initializeDb() {
       created_at INTEGER NOT NULL,
       FOREIGN KEY (performed_by) REFERENCES members(id)
     );
+
+    CREATE TABLE IF NOT EXISTS statements (
+      id TEXT PRIMARY KEY,
+      year INTEGER NOT NULL,
+      month INTEGER NOT NULL,
+      total_in REAL NOT NULL,
+      total_out REAL NOT NULL,
+      balance REAL NOT NULL,
+      expenses_by_aim TEXT NOT NULL,
+      contributors TEXT NOT NULL,
+      html_content TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(year, month)
+    );
+
+    CREATE TABLE IF NOT EXISTS email_logs (
+      id TEXT PRIMARY KEY,
+      to_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      sent_at INTEGER,
+      error TEXT,
+      created_at INTEGER NOT NULL
+    );
   `);
 }
 

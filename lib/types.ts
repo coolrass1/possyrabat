@@ -87,3 +87,32 @@ export interface AuditEntry {
   performed_by: string;
   created_at: number;
 }
+
+export interface Statement {
+  id: string;
+  year: number;
+  month: number;
+  total_in: number;
+  total_out: number;
+  balance: number;
+  expenses_by_aim: {
+    court_case: number;
+    construction: number;
+    security: number;
+    general: number;
+  };
+  contributors: Array<{ member_id: string; amount: number }>;
+  html_content: string;
+  created_at: number;
+}
+
+export interface EmailLog {
+  id: string;
+  to: string;
+  subject: string;
+  body: string;
+  status: 'sent' | 'failed' | 'pending';
+  sent_at: number | null;
+  error: string | null;
+  created_at: number;
+}

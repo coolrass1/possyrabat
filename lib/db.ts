@@ -80,6 +80,36 @@ export function initializeDb() {
       updated_by TEXT,
       updated_at INTEGER
     );
+
+    CREATE TABLE IF NOT EXISTS cases (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      opposing_party TEXT NOT NULL,
+      court TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      summary TEXT,
+      opened_date INTEGER NOT NULL,
+      next_hearing_date INTEGER,
+      created_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (created_by) REFERENCES members(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS case_steps (
+      id TEXT PRIMARY KEY,
+      case_id TEXT NOT NULL,
+      date INTEGER NOT NULL,
+      description TEXT NOT NULL,
+      type TEXT NOT NULL,
+      document_url TEXT,
+      logged_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (case_id) REFERENCES cases(id),
+      FOREIGN KEY (logged_by) REFERENCES members(id)
+    );
   `);
 }
 

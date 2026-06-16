@@ -30,3 +30,28 @@ export interface EstateMap {
   uploaded_by: string;
   uploaded_at: number;
 }
+
+export interface Case {
+  id: string;
+  title: string;
+  opposing_party: string;
+  court: string;
+  stage: 'filed' | 'in progress' | 'hearing scheduled' | 'awaiting ruling' | 'ruling given' | 'appeal' | 'resolved' | 'closed';
+  summary: string | null;
+  opened_date: number;
+  next_hearing_date: number | null;
+  created_by: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CaseStep {
+  id: string;
+  case_id: string;
+  date: number;
+  description: string;
+  type: 'court_ruling' | 'lawyer_advice' | 'hearing' | 'filing' | 'group_decision' | 'other';
+  document_url: string | null;
+  logged_by: string;
+  created_at: number;
+}

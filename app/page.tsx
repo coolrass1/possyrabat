@@ -10,9 +10,17 @@ interface Member {
   role: string;
 }
 
+interface Case {
+  id: string;
+  title: string;
+  stage: string;
+  next_hearing_date: number | null;
+}
+
 export default function Home() {
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
+  const [caseData, setCaseData] = useState<Case | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -23,6 +31,19 @@ export default function Home() {
 
         if (data.authenticated) {
           setMember(data.member);
+
+          // Fetch case data for countdown
+          try {
+            const casesRes = await fetch('/api/case');
+            if (casesRes.ok) {
+              const cases = await casesRes.json();
+              if (Array.isArray(cases) && cases.length > 0) {
+                setCaseData(cases[0]);
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching case:', err);
+          }
         } else {
           router.push('/login');
         }
@@ -63,6 +84,26 @@ export default function Home() {
       </nav>
 
       <main className="max-w-6xl mx-auto p-8">
+        {/* Next Hearing Countdown */}
+        {caseData && caseData.next_hearing_date && (
+          <div className="mb-8 bg-[#B5532E] bg-opacity-10 border-l-4 border-[#B5532E] rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-[#B5532E] mb-2">Next Court Hearing</h3>
+            <p className="text-[#16291F] text-base font-semibold mb-1">
+              {new Date(caseData.next_hearing_date).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </p>
+            <p className="text-[#7C9A5E] text-sm">
+              {Math.ceil((caseData.next_hearing_date - Date.now()) / (1000 * 60 * 60 * 24))} days from now
+            </p>
+            <a href="/case" className="mt-3 inline-block text-[#B5532E] font-semibold hover:underline">
+              View Case Details →
+            </a>
+          </div>
+        )}
+
         <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8">
           <h2 className="text-3xl font-bold text-[#16291F] mb-4 font-serif">Welcome</h2>
           {member && (

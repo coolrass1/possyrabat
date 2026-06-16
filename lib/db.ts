@@ -175,6 +175,30 @@ export function initializeDb() {
       error TEXT,
       created_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS meetings (
+      id TEXT PRIMARY KEY,
+      date INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      notes TEXT,
+      attendees TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (created_by) REFERENCES members(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS meeting_decisions (
+      id TEXT PRIMARY KEY,
+      meeting_id TEXT NOT NULL,
+      description TEXT NOT NULL,
+      decided_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (meeting_id) REFERENCES meetings(id),
+      FOREIGN KEY (decided_by) REFERENCES members(id)
+    );
   `);
 }
 

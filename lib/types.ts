@@ -116,3 +116,22 @@ export interface EmailLog {
   error: string | null;
   created_at: number;
 }
+
+export interface Meeting {
+  id: string;
+  date: number;
+  title: string;
+  notes: string | null;
+  attendees: string[]; // member IDs
+  created_by: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface MeetingDecision {
+  id: string;
+  meeting_id: string;
+  description: string;
+  decided_by: string;
+  created_at: number;
+}

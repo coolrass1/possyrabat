@@ -17,6 +17,7 @@ export function initializeDb() {
       photo_url TEXT,
       parcel_count INTEGER DEFAULT 0,
       role TEXT DEFAULT 'member',
+      status TEXT DEFAULT 'active',
       created_at INTEGER NOT NULL
     );
 
@@ -239,6 +240,18 @@ export function initializeDb() {
       FOREIGN KEY (member_id) REFERENCES members(id)
     );
   `);
+
+  // Lightweight migrations for columns added after a table's first creation.
+  // CREATE TABLE IF NOT EXISTS won't add columns to pre-existing tables, so
+  // we add them here, ignoring the error if the column already exists.
+  const addColumn = (sql: string) => {
+    try {
+      db.exec(sql);
+    } catch {
+      // column already exists — safe to ignore
+    }
+  };
+  addColumn(`ALTER TABLE members ADD COLUMN status TEXT DEFAULT 'active'`);
 }
 
 // Ensure the schema exists whenever the db module is loaded (idempotent).

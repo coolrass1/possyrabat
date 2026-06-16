@@ -7,6 +7,7 @@ export interface Member {
   photo_url: string | null;
   parcel_count: number;
   role: 'member' | 'committee' | 'owner';
+  status: 'active' | 'inactive';
   created_at: number;
 }
 

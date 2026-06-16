@@ -51,6 +51,79 @@ export default function ContributionsPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    member_id: '',
+    amount: '',
+    date: new Date().toISOString().slice(0, 10),
+    method: 'cash',
+    notes: '',
+  });
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const refreshRoster = async () => {
+    try {
+      const res = await fetch('/api/contributions/open-roster?limit=100');
+      if (res.ok) {
+        const data = await res.json();
+        setRoster(data.items || []);
+      }
+    } catch (err) {
+      console.error('Error fetching roster:', err);
+    }
+  };
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPaymentError(null);
+
+    if (!paymentForm.member_id) {
+      setPaymentError('Select a member');
+      return;
+    }
+    const amount = parseFloat(paymentForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPaymentError('Amount must be greater than 0');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/contributions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          member_id: paymentForm.member_id,
+          amount,
+          date: new Date(paymentForm.date).getTime(),
+          method: paymentForm.method,
+          notes: paymentForm.notes || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPaymentError(data.error || 'Failed to record payment');
+        return;
+      }
+
+      setPaymentForm({
+        member_id: '',
+        amount: '',
+        date: new Date().toISOString().slice(0, 10),
+        method: 'cash',
+        notes: '',
+      });
+      setShowPaymentForm(false);
+      await refreshRoster();
+    } catch (err) {
+      console.error('Error recording payment:', err);
+      setPaymentError('Failed to record payment');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const toggleSort = (key: keyof RosterEntry) => {
     if (key === sortKey) {
@@ -96,19 +169,25 @@ export default function ContributionsPage() {
   }, []);
 
   useEffect(() => {
-    const fetchRoster = async () => {
+    refreshRoster();
+  }, []);
+
+  useEffect(() => {
+    const fetchRole = async () => {
       try {
-        const res = await fetch('/api/contributions/open-roster?limit=100');
+        const res = await fetch('/api/auth/session');
         if (res.ok) {
           const data = await res.json();
-          setRoster(data.items || []);
+          if (data.authenticated) {
+            setUserRole(data.member.role);
+          }
         }
       } catch (err) {
-        console.error('Error fetching roster:', err);
+        console.error('Error fetching session:', err);
       }
     };
 
-    fetchRoster();
+    fetchRole();
   }, []);
 
   if (isLoading) {
@@ -210,6 +289,83 @@ export default function ContributionsPage() {
             <p className="text-[#7C9A5E]">No contributions recorded yet.</p>
           )}
         </div>
+
+        {/* Record payment — committee/owner only */}
+        {userRole && userRole !== 'member' && (
+          <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-[#16291F] font-serif">Record a Payment</h2>
+              <button
+                onClick={() => setShowPaymentForm((s) => !s)}
+                className="px-4 py-2 rounded-md bg-[#7C9A5E] text-white hover:bg-[#6a8650] transition"
+              >
+                {showPaymentForm ? 'Cancel' : 'Record Payment'}
+              </button>
+            </div>
+
+            {showPaymentForm && (
+              <form onSubmit={handleRecordPayment} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {paymentError && (
+                  <p className="md:col-span-2 text-[#B5532E] text-sm">{paymentError}</p>
+                )}
+                <select
+                  required
+                  value={paymentForm.member_id}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, member_id: e.target.value })}
+                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                >
+                  <option value="">Select member…</option>
+                  {roster.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.email})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  required
+                  type="number"
+                  min={0.01}
+                  step="0.01"
+                  placeholder="Amount"
+                  value={paymentForm.amount}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                />
+                <input
+                  required
+                  type="date"
+                  max={new Date().toISOString().slice(0, 10)}
+                  value={paymentForm.date}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
+                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                />
+                <select
+                  value={paymentForm.method}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank transfer</option>
+                  <option value="mobile_money">Mobile money</option>
+                  <option value="other">Other</option>
+                </select>
+                <input
+                  placeholder="Notes (optional)"
+                  value={paymentForm.notes}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45] md:col-span-2"
+                />
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 rounded-md bg-[#C79A45] text-white hover:bg-[#b58a3a] transition disabled:opacity-50 md:col-span-2"
+                >
+                  {submitting ? 'Recording…' : 'Record Payment'}
+                </button>
+              </form>
+            )}
+          </div>
+        )}
 
         {/* Open roster — transparent accountability view */}
         {roster.length > 0 && (

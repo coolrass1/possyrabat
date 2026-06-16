@@ -162,6 +162,18 @@ export interface Event {
   updated_at: number;
 }
 
+export interface Campaign {
+  id: string;
+  name: string;
+  purpose: string | null;
+  aim: 'court_case' | 'construction' | 'security' | 'general';
+  target_amount: number;
+  deadline: number | null;
+  status: 'active' | 'completed' | 'cancelled';
+  created_by: string;
+  created_at: number;
+}
+
 export interface Poll {
   id: string;
   question: string;

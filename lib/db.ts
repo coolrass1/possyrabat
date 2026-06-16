@@ -229,6 +229,20 @@ export function initializeDb() {
       FOREIGN KEY (created_by) REFERENCES members(id)
     );
 
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      purpose TEXT,
+      aim TEXT NOT NULL,
+      target_amount REAL NOT NULL,
+      deadline INTEGER,
+      status TEXT DEFAULT 'active',
+      created_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (created_by) REFERENCES members(id)
+    );
+
     CREATE TABLE IF NOT EXISTS polls (
       id TEXT PRIMARY KEY,
       question TEXT NOT NULL,

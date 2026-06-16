@@ -16,6 +16,7 @@ const MEMBER_LINKS = [
   { href: '/case', label: 'Case' },
   { href: '/contributions', label: 'Contributions' },
   { href: '/spending', label: 'Spending' },
+  { href: '/campaigns', label: 'Campaigns' },
   { href: '/meetings', label: 'Meetings' },
   { href: '/events', label: 'Events' },
   { href: '/polls', label: 'Polls' },

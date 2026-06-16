@@ -229,6 +229,18 @@ export function initializeDb() {
       FOREIGN KEY (created_by) REFERENCES members(id)
     );
 
+    CREATE TABLE IF NOT EXISTS community_posts (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      title TEXT,
+      body TEXT NOT NULL,
+      image_data TEXT,
+      author_id TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (author_id) REFERENCES members(id)
+    );
+
     CREATE TABLE IF NOT EXISTS campaigns (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,

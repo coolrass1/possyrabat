@@ -162,6 +162,16 @@ export interface Event {
   updated_at: number;
 }
 
+export interface CommunityPost {
+  id: string;
+  type: 'story' | 'notice' | 'gratitude';
+  title: string | null;
+  body: string;
+  image_data: string | null;
+  author_id: string;
+  created_at: number;
+}
+
 export interface Campaign {
   id: string;
   name: string;

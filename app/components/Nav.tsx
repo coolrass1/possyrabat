@@ -19,6 +19,7 @@ const MEMBER_LINKS = [
   { href: '/campaigns', label: 'Campaigns' },
   { href: '/meetings', label: 'Meetings' },
   { href: '/events', label: 'Events' },
+  { href: '/community', label: 'Community' },
   { href: '/polls', label: 'Polls' },
   { href: '/statements', label: 'Statements' },
   { href: '/rules', label: 'Rules' },

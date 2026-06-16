@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
 import db from '@/lib/db';
 
-export async function PATCH(request: NextRequest, context: any) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const sessionId = request.cookies.get('session_id')?.value;
 
@@ -21,7 +24,7 @@ export async function PATCH(request: NextRequest, context: any) {
     }
 
     const { parcel_count } = await request.json();
-    const targetMemberId = context.id || context.params?.id;
+    const { id: targetMemberId } = await params;
 
     if (!targetMemberId) {
       return NextResponse.json({ error: 'Member ID required' }, { status: 400 });

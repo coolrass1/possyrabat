@@ -34,7 +34,7 @@ describe('Parcel Holdings', () => {
       json: async () => ({ parcel_count: 4 }),
     } as any;
 
-    const updateResponse = await patchParcelCount(updateRequest, { id: memberId });
+    const updateResponse = await patchParcelCount(updateRequest, { params: Promise.resolve({ id: memberId }) });
     expect(updateResponse.status).toBe(200);
 
     const memberSession = createSession(memberId);
@@ -75,7 +75,7 @@ describe('Parcel Holdings', () => {
       json: async () => ({ parcel_count: 10 }),
     } as any;
 
-    const updateResponse = await patchParcelCount(updateRequest, { id: memberId });
+    const updateResponse = await patchParcelCount(updateRequest, { params: Promise.resolve({ id: memberId }) });
     expect(updateResponse.status).toBe(403);
   });
 

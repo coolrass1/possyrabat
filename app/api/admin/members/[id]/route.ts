@@ -12,11 +12,14 @@ async function requireOwner(request: NextRequest) {
   return { actor };
 }
 
-export async function PATCH(request: NextRequest, context: any) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const auth = await requireOwner(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const id = context.params?.id ?? context.id;
+  const { id } = await params;
   try {
     const { role } = await request.json();
     if (!['member', 'committee', 'owner'].includes(role)) {
@@ -30,11 +33,14 @@ export async function PATCH(request: NextRequest, context: any) {
   }
 }
 
-export async function DELETE(request: NextRequest, context: any) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const auth = await requireOwner(request);
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const id = context.params?.id ?? context.id;
+  const { id } = await params;
   try {
     await deactivateMember(id);
     return NextResponse.json({ success: true });

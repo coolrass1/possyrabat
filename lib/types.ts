@@ -41,6 +41,8 @@ export interface Case {
   summary: string | null;
   opened_date: number;
   next_hearing_date: number | null;
+  lawyer_name: string | null;
+  lawyer_contact: string | null;
   created_by: string;
   created_at: number;
   updated_at: number;

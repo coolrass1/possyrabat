@@ -266,6 +266,8 @@ export function initializeDb() {
   };
   addColumn(`ALTER TABLE members ADD COLUMN status TEXT DEFAULT 'active'`);
   addColumn(`ALTER TABLE settings ADD COLUMN rules_text TEXT`);
+  addColumn(`ALTER TABLE cases ADD COLUMN lawyer_name TEXT`);
+  addColumn(`ALTER TABLE cases ADD COLUMN lawyer_contact TEXT`);
 }
 
 // Ensure the schema exists whenever the db module is loaded (idempotent).

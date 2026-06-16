@@ -53,6 +53,7 @@ export default function CasePage() {
   const [showStepForm, setShowStepForm] = useState(false);
   const [showActionForm, setShowActionForm] = useState(false);
   const [showCaseForm, setShowCaseForm] = useState(false);
+  const [caseCosts, setCaseCosts] = useState<number>(0);
   const [caseForm, setCaseForm] = useState({
     title: '',
     opposing_party: '',
@@ -61,6 +62,8 @@ export default function CasePage() {
     summary: '',
     opened_date: new Date().toISOString().split('T')[0],
     next_hearing_date: '',
+    lawyer_name: '',
+    lawyer_contact: '',
   });
   const [stepForm, setStepForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -116,6 +119,12 @@ export default function CasePage() {
             const actionsRes = await fetch(`/api/case/${firstCase.id}/actions`);
             if (actionsRes.ok) {
               setActions(await actionsRes.json());
+            }
+
+            // Fetch case costs (legal spend from the ledger)
+            const costsRes = await fetch('/api/case/costs');
+            if (costsRes.ok) {
+              setCaseCosts((await costsRes.json()).total || 0);
             }
           }
         }
@@ -226,6 +235,8 @@ export default function CasePage() {
       next_hearing_date: caseForm.next_hearing_date
         ? new Date(caseForm.next_hearing_date).getTime()
         : null,
+      lawyer_name: caseForm.lawyer_name || null,
+      lawyer_contact: caseForm.lawyer_contact || null,
     };
 
     try {
@@ -262,6 +273,8 @@ export default function CasePage() {
         next_hearing_date: caseData.next_hearing_date
           ? new Date(caseData.next_hearing_date).toISOString().split('T')[0]
           : '',
+        lawyer_name: caseData.lawyer_name || '',
+        lawyer_contact: caseData.lawyer_contact || '',
       });
     }
     setShowCaseForm(true);
@@ -360,6 +373,24 @@ export default function CasePage() {
           className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
           rows={3}
         />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-[#16291F] mb-2">Lawyer name</label>
+          <input
+            value={caseForm.lawyer_name}
+            onChange={(e) => setCaseForm({ ...caseForm, lawyer_name: e.target.value })}
+            className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-[#16291F] mb-2">Lawyer contact</label>
+          <input
+            value={caseForm.lawyer_contact}
+            onChange={(e) => setCaseForm({ ...caseForm, lawyer_contact: e.target.value })}
+            className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
+          />
+        </div>
       </div>
       <div className="flex gap-3">
         <button
@@ -476,6 +507,28 @@ export default function CasePage() {
               </p>
             </div>
           )}
+
+          {/* Lawyer & case costs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div className="bg-white rounded p-4 border border-[#E8DCC8]">
+              <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Lawyer</p>
+              {caseData.lawyer_name ? (
+                <>
+                  <p className="text-[#16291F] font-semibold">{caseData.lawyer_name}</p>
+                  {caseData.lawyer_contact && (
+                    <p className="text-[#16291F] text-sm">{caseData.lawyer_contact}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-[#7C9A5E] text-sm italic">Not recorded</p>
+              )}
+            </div>
+            <div className="bg-white rounded p-4 border border-[#E8DCC8]">
+              <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Case costs (legal spend)</p>
+              <p className="text-2xl font-bold text-[#C79A45] font-figure">€{caseCosts.toLocaleString()}</p>
+              <a href="/spending" className="text-[#C79A45] text-xs font-semibold hover:underline">From the ledger →</a>
+            </div>
+          </div>
           </>
           )}
         </div>

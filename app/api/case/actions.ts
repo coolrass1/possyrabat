@@ -14,6 +14,8 @@ function rowToCase(row: any): Case {
     summary: row.summary,
     opened_date: row.opened_date,
     next_hearing_date: row.next_hearing_date,
+    lawyer_name: row.lawyer_name ?? null,
+    lawyer_contact: row.lawyer_contact ?? null,
     created_by: row.created_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -76,6 +78,8 @@ export async function createCase(
     summary: data.summary,
     opened_date: data.opened_date,
     next_hearing_date: data.next_hearing_date,
+    lawyer_name: null,
+    lawyer_contact: null,
     created_by: committeeId,
     created_at: now,
     updated_at: now,
@@ -149,6 +153,8 @@ export async function editCase(
     stage: Case['stage'];
     summary: string | null;
     next_hearing_date: number | null;
+    lawyer_name: string | null;
+    lawyer_contact: string | null;
   }>,
   committeeId: string
 ): Promise<Case> {
@@ -167,12 +173,16 @@ export async function editCase(
       updates.next_hearing_date !== undefined
         ? updates.next_hearing_date
         : existing.next_hearing_date,
+    lawyer_name:
+      updates.lawyer_name !== undefined ? updates.lawyer_name : existing.lawyer_name,
+    lawyer_contact:
+      updates.lawyer_contact !== undefined ? updates.lawyer_contact : existing.lawyer_contact,
   };
 
   db.prepare(`
     UPDATE cases SET
       title = ?, opposing_party = ?, court = ?, stage = ?,
-      summary = ?, next_hearing_date = ?, updated_at = ?
+      summary = ?, next_hearing_date = ?, lawyer_name = ?, lawyer_contact = ?, updated_at = ?
     WHERE id = ?
   `).run(
     updated.title,
@@ -181,6 +191,8 @@ export async function editCase(
     updated.stage,
     updated.summary,
     updated.next_hearing_date,
+    updated.lawyer_name,
+    updated.lawyer_contact,
     now,
     caseId
   );
@@ -193,6 +205,20 @@ export async function editCase(
     created_at: existing.created_at,
     updated_at: now,
   };
+}
+
+/**
+ * Case costs are the legal spend pulled from the ledger: the sum of expenses
+ * filed under the court_case aim. (Derived, never stored — keeps the books
+ * reconciled, per the PRD.)
+ */
+export async function getCaseCosts(): Promise<number> {
+  const row = db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) as total
+    FROM expenses
+    WHERE aim = 'court_case' AND deleted_at IS NULL
+  `).get() as any;
+  return row.total || 0;
 }
 
 export async function deleteCase(caseId: string): Promise<void> {

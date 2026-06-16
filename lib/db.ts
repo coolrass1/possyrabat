@@ -61,6 +61,7 @@ export function initializeDb() {
       recorded_by TEXT NOT NULL,
       status TEXT DEFAULT 'recorded',
       created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
       FOREIGN KEY (recorded_by) REFERENCES members(id)
     );
 

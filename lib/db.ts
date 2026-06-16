@@ -110,6 +110,34 @@ export function initializeDb() {
       FOREIGN KEY (case_id) REFERENCES cases(id),
       FOREIGN KEY (logged_by) REFERENCES members(id)
     );
+
+    CREATE TABLE IF NOT EXISTS case_documents (
+      id TEXT PRIMARY KEY,
+      case_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      storage_path TEXT NOT NULL,
+      uploaded_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (case_id) REFERENCES cases(id),
+      FOREIGN KEY (uploaded_by) REFERENCES members(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS case_actions (
+      id TEXT PRIMARY KEY,
+      case_id TEXT NOT NULL,
+      task TEXT NOT NULL,
+      assigned_to TEXT NOT NULL,
+      due_date INTEGER NOT NULL,
+      status TEXT DEFAULT 'open',
+      created_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (case_id) REFERENCES cases(id),
+      FOREIGN KEY (assigned_to) REFERENCES members(id),
+      FOREIGN KEY (created_by) REFERENCES members(id)
+    );
   `);
 }
 

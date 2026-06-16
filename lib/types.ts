@@ -55,3 +55,24 @@ export interface CaseStep {
   logged_by: string;
   created_at: number;
 }
+
+export interface CaseDocument {
+  id: string;
+  case_id: string;
+  filename: string;
+  storage_path: string;
+  uploaded_by: string;
+  created_at: number;
+}
+
+export interface CaseAction {
+  id: string;
+  case_id: string;
+  task: string;
+  assigned_to: string;
+  due_date: number;
+  status: 'open' | 'done';
+  created_by: string;
+  created_at: number;
+  updated_at: number;
+}

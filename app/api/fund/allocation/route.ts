@@ -17,13 +17,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const allocation: Record<string, number> = {};
+    const allocation: Record<string, any> = {};
     let total = 0;
 
     // Get spending for each aim
     for (const aim of AIMS) {
       const result = db
-        .prepare('SELECT SUM(amount) as total FROM expenses WHERE aim = ?')
+        .prepare('SELECT SUM(amount) as total FROM expenses WHERE aim = ? AND deleted_at IS NULL')
         .get(aim) as any;
       const amount = result?.total || 0;
       allocation[aim] = parseFloat(amount.toFixed(2));

@@ -5,6 +5,7 @@ export interface Member {
   name: string | null;
   phone: string | null;
   photo_url: string | null;
+  parcel_count: number;
   role: 'member' | 'committee' | 'owner';
   created_at: number;
 }

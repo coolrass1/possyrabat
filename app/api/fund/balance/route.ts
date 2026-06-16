@@ -17,13 +17,13 @@ export async function GET(request: NextRequest) {
 
     // Calculate total contributions
     const totalInResult = db
-      .prepare('SELECT SUM(amount) as total FROM contributions')
+      .prepare('SELECT SUM(amount) as total FROM contributions WHERE deleted_at IS NULL')
       .get() as any;
     const total_in = totalInResult?.total || 0;
 
-    // Calculate total expenses
+    // Calculate total expenses (excluding soft-deleted)
     const totalOutResult = db
-      .prepare('SELECT SUM(amount) as total FROM expenses')
+      .prepare('SELECT SUM(amount) as total FROM expenses WHERE deleted_at IS NULL')
       .get() as any;
     const total_out = totalOutResult?.total || 0;
 

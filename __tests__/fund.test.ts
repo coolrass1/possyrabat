@@ -152,3 +152,46 @@ describe('Fund custodian', () => {
     expect((await PATCH(req)).status).toBe(403);
   });
 });
+
+describe('Soft-deleted entries excluded from fund totals', () => {
+  beforeEach(() => {
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM expenses; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+  });
+
+  it('a soft-deleted expense does not count in balance or allocation', async () => {
+    const passwordHash = await hashPassword('test123');
+    const now = Date.now();
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run('m-fund', 'm@example.com', passwordHash, 'Member', 'member', now);
+
+    // €1000 in
+    db.prepare(
+      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(randomBytes(8).toString('hex'), 'm-fund', 1000, now, 'transfer', 'm-fund', now, null);
+
+    // One live €300 court expense, one soft-deleted €500 construction expense
+    const insExp = db.prepare(
+      'INSERT INTO expenses (id, description, amount, aim, date, recorded_by, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    insExp.run(randomBytes(8).toString('hex'), 'Legal', 300, 'court_case', now, 'm-fund', now, null);
+    insExp.run(randomBytes(8).toString('hex'), 'Voided fence', 500, 'construction', now, 'm-fund', now, now);
+
+    const session = createSession('m-fund');
+    const mkReq = () => ({
+      cookies: { get: (n: string) => (n === 'session_id' ? { value: session.id } : undefined) },
+    } as any);
+
+    const { GET: getBalance } = await import('@/app/api/fund/balance/route');
+    const balance = await (await getBalance(mkReq())).json();
+    // Out is only the live 300, not 800
+    expect(balance.total_out).toBe(300);
+    expect(balance.balance).toBe(700);
+
+    const { GET: getAllocation } = await import('@/app/api/fund/allocation/route');
+    const allocation = await (await getAllocation(mkReq())).json();
+    expect(allocation.construction).toBe(0);
+    expect(allocation.court_case).toBe(300);
+    expect(allocation.total).toBe(300);
+  });
+});

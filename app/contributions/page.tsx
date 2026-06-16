@@ -47,8 +47,19 @@ export default function ContributionsPage() {
   const [standing, setStanding] = useState<Standing | null>(null);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [rosterSearch, setRosterSearch] = useState('');
+  const [sortKey, setSortKey] = useState<keyof RosterEntry>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
+
+  const toggleSort = (key: keyof RosterEntry) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -236,11 +247,26 @@ export default function ContributionsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b-2 border-[#C79A45]">
-                    <th className="text-left py-3 text-[#16291F] font-semibold">Member</th>
-                    <th className="text-right py-3 text-[#16291F] font-semibold">Parcels</th>
-                    <th className="text-right py-3 text-[#16291F] font-semibold">Obligation</th>
-                    <th className="text-right py-3 text-[#16291F] font-semibold">Paid</th>
-                    <th className="text-left py-3 pl-6 text-[#16291F] font-semibold">Status</th>
+                    {([
+                      ['name', 'Member', 'left'],
+                      ['parcel_count', 'Parcels', 'right'],
+                      ['obligation', 'Obligation', 'right'],
+                      ['paid', 'Paid', 'right'],
+                      ['status', 'Status', 'left'],
+                    ] as [keyof RosterEntry, string, 'left' | 'right'][]).map(([key, label, align]) => (
+                      <th
+                        key={key}
+                        onClick={() => toggleSort(key)}
+                        className={`py-3 text-[#16291F] font-semibold cursor-pointer select-none hover:text-[#C79A45] text-${align}${
+                          key === 'status' ? ' pl-6' : ''
+                        }`}
+                      >
+                        {label}
+                        {sortKey === key && (
+                          <span className="ml-1 text-[#C79A45]">{sortDir === 'asc' ? '▲' : '▼'}</span>
+                        )}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -248,6 +274,18 @@ export default function ContributionsPage() {
                     .filter((m) =>
                       (m.name || '').toLowerCase().includes(rosterSearch.toLowerCase())
                     )
+                    .slice()
+                    .sort((a, b) => {
+                      const av = a[sortKey];
+                      const bv = b[sortKey];
+                      let cmp: number;
+                      if (typeof av === 'number' && typeof bv === 'number') {
+                        cmp = av - bv;
+                      } else {
+                        cmp = String(av).localeCompare(String(bv));
+                      }
+                      return sortDir === 'asc' ? cmp : -cmp;
+                    })
                     .map((m) => (
                       <tr key={m.id} className="border-b border-[#E8DCC8] hover:bg-[#F9F5F0]">
                         <td className="py-3 text-[#16291F]">

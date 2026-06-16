@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Case, CaseStep } from '@/lib/types';
+import { Case, CaseStep, CaseDocument, CaseAction } from '@/lib/types';
 
 const STAGE_COLORS: Record<string, string> = {
   'filed': '#7C9A5E',
@@ -28,13 +28,21 @@ export default function CasePage() {
   const router = useRouter();
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [timeline, setTimeline] = useState<CaseStep[]>([]);
+  const [documents, setDocuments] = useState<CaseDocument[]>([]);
+  const [actions, setActions] = useState<CaseAction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showStepForm, setShowStepForm] = useState(false);
+  const [showActionForm, setShowActionForm] = useState(false);
   const [stepForm, setStepForm] = useState({
     date: new Date().toISOString().split('T')[0],
     description: '',
     type: 'other' as const,
+  });
+  const [actionForm, setActionForm] = useState({
+    task: '',
+    assigned_to: '',
+    due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   });
 
   useEffect(() => {
@@ -62,6 +70,18 @@ export default function CasePage() {
             const timelineRes = await fetch(`/api/case/${firstCase.id}/timeline`);
             if (timelineRes.ok) {
               setTimeline(await timelineRes.json());
+            }
+
+            // Fetch documents
+            const docsRes = await fetch(`/api/case/${firstCase.id}/documents`);
+            if (docsRes.ok) {
+              setDocuments(await docsRes.json());
+            }
+
+            // Fetch actions
+            const actionsRes = await fetch(`/api/case/${firstCase.id}/actions`);
+            if (actionsRes.ok) {
+              setActions(await actionsRes.json());
             }
           }
         }
@@ -103,6 +123,55 @@ export default function CasePage() {
       }
     } catch (err) {
       console.error('Error adding step:', err);
+    }
+  };
+
+  const handleCreateAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!caseData) return;
+
+    try {
+      const res = await fetch(`/api/case/${caseData.id}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task: actionForm.task,
+          assigned_to: actionForm.assigned_to,
+          due_date: new Date(actionForm.due_date).getTime(),
+        }),
+      });
+
+      if (res.ok) {
+        const newAction = await res.json();
+        setActions([...actions, newAction].sort((a, b) => a.due_date - b.due_date));
+        setActionForm({
+          task: '',
+          assigned_to: '',
+          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        });
+        setShowActionForm(false);
+      }
+    } catch (err) {
+      console.error('Error creating action:', err);
+    }
+  };
+
+  const handleToggleActionStatus = async (action: CaseAction) => {
+    try {
+      const res = await fetch(`/api/case/${caseData?.id}/actions/${action.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: action.status === 'open' ? 'done' : 'open',
+        }),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setActions(actions.map((a) => (a.id === updated.id ? updated : a)));
+      }
+    } catch (err) {
+      console.error('Error updating action:', err);
     }
   };
 
@@ -313,6 +382,188 @@ export default function CasePage() {
             </div>
           ) : (
             <p className="text-[#7C9A5E] text-center py-8">No timeline events recorded yet.</p>
+          )}
+        </div>
+
+        {/* Documents Section */}
+        <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-[#16291F] font-serif">Case Documents</h2>
+            {userRole !== 'member' && (
+              <label className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md hover:bg-[#6a8a4f] transition-colors cursor-pointer">
+                Upload Document
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file && caseData) {
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      try {
+                        const res = await fetch(`/api/case/${caseData.id}/documents`, {
+                          method: 'POST',
+                          body: formData,
+                        });
+                        if (res.ok) {
+                          const newDoc = await res.json();
+                          setDocuments([...documents, newDoc]);
+                        }
+                      } catch (err) {
+                        console.error('Error uploading document:', err);
+                      }
+                    }
+                  }}
+                />
+              </label>
+            )}
+          </div>
+
+          {documents.length > 0 ? (
+            <div className="space-y-3">
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex justify-between items-center p-4 bg-white rounded-lg border border-[#E8DCC8] hover:bg-[#F9F5F0]"
+                >
+                  <div className="flex-1">
+                    <p className="font-semibold text-[#16291F]">{doc.filename}</p>
+                    <p className="text-xs text-[#7C9A5E]">
+                      Uploaded {formatDate(doc.created_at)}
+                    </p>
+                  </div>
+                  {userRole !== 'member' && (
+                    <button
+                      onClick={async () => {
+                        if (
+                          confirm('Delete this document?')
+                        ) {
+                          await fetch(`/api/case/${caseData?.id}/documents/${doc.id}`, {
+                            method: 'DELETE',
+                          });
+                          setDocuments(documents.filter((d) => d.id !== doc.id));
+                        }
+                      }}
+                      className="ml-4 px-3 py-1 text-sm bg-[#B5532E] text-white rounded hover:bg-[#9d4520] transition-colors"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[#7C9A5E] text-center py-8">No documents uploaded yet.</p>
+          )}
+        </div>
+
+        {/* Action Items Section */}
+        <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-[#16291F] font-serif">Action Items</h2>
+            {userRole !== 'member' && (
+              <button
+                onClick={() => setShowActionForm(!showActionForm)}
+                className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md hover:bg-[#6a8a4f] transition-colors"
+              >
+                {showActionForm ? 'Cancel' : 'Create Action'}
+              </button>
+            )}
+          </div>
+
+          {showActionForm && userRole !== 'member' && (
+            <form
+              onSubmit={handleCreateAction}
+              className="mb-8 p-6 bg-[#F9F5F0] rounded-lg border border-[#E8DCC8]"
+            >
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-[#16291F] mb-2">Task</label>
+                <input
+                  type="text"
+                  required
+                  value={actionForm.task}
+                  onChange={(e) => setActionForm({ ...actionForm, task: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
+                  placeholder="What needs to be done?"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-semibold text-[#16291F] mb-2">
+                    Assigned To
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={actionForm.assigned_to}
+                    onChange={(e) => setActionForm({ ...actionForm, assigned_to: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
+                    placeholder="Member ID"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#16291F] mb-2">Due Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={actionForm.due_date}
+                    onChange={(e) => setActionForm({ ...actionForm, due_date: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md hover:bg-[#6a8a4f] transition-colors"
+              >
+                Create Action
+              </button>
+            </form>
+          )}
+
+          {actions.length > 0 ? (
+            <div className="space-y-3">
+              {actions.map((action) => (
+                <div
+                  key={action.id}
+                  className={`p-4 rounded-lg border-l-4 ${
+                    action.status === 'done'
+                      ? 'bg-[#7C9A5E] bg-opacity-10 border-[#7C9A5E]'
+                      : 'bg-white border-[#B5532E]'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <p
+                        className={`font-semibold ${
+                          action.status === 'done' ? 'line-through text-[#7C9A5E]' : 'text-[#16291F]'
+                        }`}
+                      >
+                        {action.task}
+                      </p>
+                      <div className="flex gap-4 text-xs text-[#7C9A5E] mt-2">
+                        <span>Due: {formatDate(action.due_date)}</span>
+                        <span>Status: {action.status}</span>
+                      </div>
+                    </div>
+                    {userRole !== 'member' && (
+                      <button
+                        onClick={() => handleToggleActionStatus(action)}
+                        className={`ml-4 px-3 py-1 text-sm rounded transition-colors ${
+                          action.status === 'open'
+                            ? 'bg-[#7C9A5E] text-white hover:bg-[#6a8a4f]'
+                            : 'bg-[#B5532E] text-white hover:bg-[#9d4520]'
+                        }`}
+                      >
+                        {action.status === 'open' ? 'Mark Done' : 'Reopen'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[#7C9A5E] text-center py-8">No action items created yet.</p>
           )}
         </div>
       </main>

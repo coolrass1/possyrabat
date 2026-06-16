@@ -148,3 +148,21 @@ export interface Event {
   created_at: number;
   updated_at: number;
 }
+
+export interface Poll {
+  id: string;
+  question: string;
+  choices: string[];
+  status: 'open' | 'closed';
+  deadline: number;
+  created_by: string;
+  created_at: number;
+}
+
+export interface Vote {
+  id: string;
+  poll_id: string;
+  member_id: string;
+  choice: string;
+  created_at: number;
+}

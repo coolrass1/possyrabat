@@ -214,6 +214,30 @@ export function initializeDb() {
       deleted_at INTEGER,
       FOREIGN KEY (created_by) REFERENCES members(id)
     );
+
+    CREATE TABLE IF NOT EXISTS polls (
+      id TEXT PRIMARY KEY,
+      question TEXT NOT NULL,
+      choices TEXT NOT NULL,
+      status TEXT DEFAULT 'open',
+      deadline INTEGER NOT NULL,
+      created_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (created_by) REFERENCES members(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS votes (
+      id TEXT PRIMARY KEY,
+      poll_id TEXT NOT NULL,
+      member_id TEXT NOT NULL,
+      choice TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      UNIQUE(poll_id, member_id),
+      FOREIGN KEY (poll_id) REFERENCES polls(id),
+      FOREIGN KEY (member_id) REFERENCES members(id)
+    );
   `);
 }
 

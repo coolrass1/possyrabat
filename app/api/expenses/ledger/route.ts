@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const ledger: Record<string, number> = {};
+    const ledger: Record<string, any> = {};
     let total = 0;
 
     // Get spending for each aim (excluding soft-deleted)
@@ -30,8 +30,33 @@ export async function GET(request: NextRequest) {
       total += amount;
     }
 
+    // Per-aim percentages of total spending
+    const percentages: Record<string, number> = {};
+    for (const aim of AIMS) {
+      percentages[aim] = total > 0 ? parseFloat(((ledger[aim] / total) * 100).toFixed(2)) : 0;
+    }
+
+    // Itemized line items, newest first
+    const items = (
+      db
+        .prepare(
+          'SELECT id, description, amount, aim, date, receipt_url, recorded_by FROM expenses WHERE deleted_at IS NULL ORDER BY date DESC'
+        )
+        .all() as any[]
+    ).map((e) => ({
+      id: e.id,
+      description: e.description,
+      amount: e.amount,
+      aim: e.aim,
+      date: e.date,
+      receipt_url: e.receipt_url,
+      recorded_by: e.recorded_by,
+    }));
+
     ledger.total = parseFloat(total.toFixed(2));
     ledger.currency = 'EUR';
+    ledger.percentages = percentages;
+    ledger.items = items;
 
     return NextResponse.json(ledger);
   } catch (error) {

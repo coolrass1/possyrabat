@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById } from '@/lib/auth';
+import { getSettings } from '@/lib/settings';
 import db from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -15,14 +16,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse query params
+    // Parse query params. Fee falls back to the configured per-parcel fee.
     const url = new URL(request.url);
-    const fee = parseFloat(url.searchParams.get('fee') || '0');
+    const feeParam = url.searchParams.get('fee');
+    const fee = feeParam !== null ? parseFloat(feeParam) : getSettings().per_parcel_fee;
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
 
-    if (fee <= 0) {
-      return NextResponse.json({ error: 'Fee must be greater than 0' }, { status: 400 });
+    if (!Number.isFinite(fee) || fee < 0) {
+      return NextResponse.json({ error: 'Fee must be 0 or greater' }, { status: 400 });
     }
 
     if (page < 1 || limit < 1 || limit > 100) {
@@ -31,18 +33,18 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    // Get total member count (members only, not committee)
+    // Roster = every parcel-holder, regardless of role (committee hold parcels too).
     const countResult = db
-      .prepare('SELECT COUNT(*) as count FROM members WHERE role = ?')
-      .get('member') as any;
+      .prepare('SELECT COUNT(*) as count FROM members WHERE parcel_count > 0')
+      .get() as any;
     const total = countResult?.count || 0;
 
-    // Get members sorted by name with pagination
+    // Get parcel-holders sorted by name with pagination
     const members = db
       .prepare(
-        'SELECT id, name, email, parcel_count FROM members WHERE role = ? ORDER BY name ASC LIMIT ? OFFSET ?'
+        'SELECT id, name, email, parcel_count FROM members WHERE parcel_count > 0 ORDER BY name ASC LIMIT ? OFFSET ?'
       )
-      .all('member', limit, offset) as any[];
+      .all(limit, offset) as any[];
 
     // For each member, calculate paid amount and status
     const items = members.map((member) => {

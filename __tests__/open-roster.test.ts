@@ -105,3 +105,52 @@ describe('Open Roster & Contribution Transparency', () => {
     });
   });
 });
+
+describe('Open Roster scope & settings fee', () => {
+  beforeEach(() => {
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+  });
+
+  it('includes committee members who hold parcels and uses the settings fee when none passed', async () => {
+    const passwordHash = await hashPassword('test123');
+    const now = Date.now();
+
+    const insertMemberStmt = db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, parcel_count, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    // A committee member who also holds 5 parcels
+    insertMemberStmt.run('c-holder', 'chair@example.com', passwordHash, 'Chair', 5, 'committee', now);
+    // A regular member with 2 parcels
+    insertMemberStmt.run('m-reg', 'reg@example.com', passwordHash, 'Reg', 2, 'member', now);
+    // A pure admin with 0 parcels (should NOT appear — owes nothing, holds nothing)
+    insertMemberStmt.run('admin0', 'admin@example.com', passwordHash, 'Admin', 0, 'committee', now);
+
+    const { setPerParcelFee } = await import('@/lib/settings');
+    setPerParcelFee(50, 'admin0');
+
+    const session = createSession('m-reg');
+    const { GET: getRoster } = await import('@/app/api/contributions/open-roster/route');
+    const request = {
+      url: 'http://localhost:3000/api/contributions/open-roster',
+      cookies: {
+        get: (name: string) => (name === 'session_id' ? { value: session.id } : undefined),
+      },
+    } as any;
+
+    const response = await getRoster(request);
+    expect(response.status).toBe(200);
+    const roster = await response.json();
+
+    // Chair (committee, 5 parcels) and Reg (member, 2 parcels) appear; Admin (0 parcels) does not
+    expect(roster.items).toHaveLength(2);
+    const chair = roster.items.find((m: any) => m.id === 'c-holder');
+    const admin = roster.items.find((m: any) => m.id === 'admin0');
+
+    expect(admin).toBeUndefined();
+    expect(chair).toMatchObject({
+      name: 'Chair',
+      parcel_count: 5,
+      obligation: 250, // 5 × 50 (settings fee)
+    });
+  });
+});

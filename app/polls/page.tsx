@@ -164,7 +164,7 @@ export default function PollsPage() {
     <div className="min-h-screen bg-[#16291F] text-[#F3ECDD]">
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4" style={{ fontFamily: 'Fraunces' }}>
+          <h1 className="text-4xl font-bold mb-4" style={{ fontFamily: 'var(--font-fraunces)' }}>
             Community Polls
           </h1>
           <p className="text-lg text-[#C79A45]">Vote on important decisions</p>
@@ -247,7 +247,7 @@ export default function PollsPage() {
             polls.map((poll) => (
               <div key={poll.id} className="bg-[#1A3A2E] p-6 rounded border border-[#C79A45]/50">
                 <div className="mb-4">
-                  <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Fraunces' }}>
+                  <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'var(--font-fraunces)' }}>
                     {poll.question}
                   </h2>
                   <p

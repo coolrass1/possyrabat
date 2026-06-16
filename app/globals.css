@@ -1,26 +1,44 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+  Possyrabat design language (PRD §8)
+  - deep botanical green canvas, warm parchment cards
+  - brass for money/value, clay-red for the case, moss-green for secure/positive
+  - Fraunces (display), Inter (body), Spline Sans Mono (figures)
+*/
+@theme {
+  --color-canvas: #16291f;
+  --color-canvas-deep: #0d1a13;
+  --color-parchment: #f3ecdd;
+  --color-parchment-dim: #e8dcc8;
+  --color-brass: #c79a45;
+  --color-clay: #b5532e;
+  --color-moss: #7c9a5e;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-serif: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-spline-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-parchment);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Figures (money, counts) read as precise and live */
+.font-figure {
+  font-family: var(--font-spline-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

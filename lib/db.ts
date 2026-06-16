@@ -138,6 +138,18 @@ export function initializeDb() {
       FOREIGN KEY (assigned_to) REFERENCES members(id),
       FOREIGN KEY (created_by) REFERENCES members(id)
     );
+
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id TEXT PRIMARY KEY,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      before_values TEXT,
+      after_values TEXT NOT NULL,
+      performed_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (performed_by) REFERENCES members(id)
+    );
   `);
 }
 

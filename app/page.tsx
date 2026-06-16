@@ -8,6 +8,7 @@ interface Member {
   email: string;
   name: string | null;
   role: string;
+  parcel_count: number;
 }
 
 interface Case {
@@ -22,6 +23,7 @@ interface FundData {
   balance: number;
   totalContributions: number;
   totalExpenses: number;
+  thisMonthContributions: number;
   byAim: {
     court_case: number;
     construction: number;
@@ -212,6 +214,13 @@ export default function Home() {
                       </div>
                     );
                   })}
+                </div>
+
+                <div className="bg-[#7C9A5E] bg-opacity-10 p-3 rounded text-center">
+                  <p className="text-xs text-[#7C9A5E] font-semibold">This Month's Contributions</p>
+                  <p className="text-xl font-bold text-[#16291F]">
+                    €{fundData.thisMonthContributions.toLocaleString()}
+                  </p>
                 </div>
 
                 <div className="text-xs text-[#7C9A5E] pt-2 border-t border-[#E8DCC8]">

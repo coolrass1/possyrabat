@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
           email: member.email,
           name: member.name,
           role: member.role,
+          parcel_count: member.parcel_count,
         },
       },
       { status: 200 }

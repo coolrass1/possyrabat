@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "jest"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit && jest"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

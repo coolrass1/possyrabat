@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
+import { createAuditLog } from '@/lib/audit';
 import db from '@/lib/db';
 
 const VALID_AIMS = ['court_case', 'construction', 'security', 'general'];
@@ -87,6 +88,41 @@ export async function PATCH(request: NextRequest, context: any) {
     db.prepare(`UPDATE expenses SET ${updates.join(', ')} WHERE id = ?`).run(...values);
 
     const updated = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id) as any;
+
+    // Log the update
+    const beforeValues: Record<string, any> = {};
+    const afterValues: Record<string, any> = {};
+
+    if (description !== undefined) {
+      beforeValues.description = existing.description;
+      afterValues.description = description;
+    }
+    if (amount !== undefined) {
+      beforeValues.amount = existing.amount;
+      afterValues.amount = amount;
+    }
+    if (aim !== undefined) {
+      beforeValues.aim = existing.aim;
+      afterValues.aim = aim;
+    }
+    if (date !== undefined) {
+      beforeValues.date = existing.date;
+      afterValues.date = date;
+    }
+    if (receipt_url !== undefined) {
+      beforeValues.receipt_url = existing.receipt_url;
+      afterValues.receipt_url = receipt_url;
+    }
+
+    await createAuditLog({
+      entity_type: 'expense',
+      entity_id: id,
+      action: 'updated',
+      before_values: Object.keys(beforeValues).length > 0 ? beforeValues : null,
+      after_values: afterValues,
+      performed_by: auth.member.id,
+    });
+
     return NextResponse.json({
       id: updated.id,
       description: updated.description,
@@ -123,6 +159,22 @@ export async function DELETE(request: NextRequest, context: any) {
     }
 
     db.prepare('UPDATE expenses SET deleted_at = ? WHERE id = ?').run(Date.now(), id);
+
+    // Log the deletion
+    await createAuditLog({
+      entity_type: 'expense',
+      entity_id: id,
+      action: 'deleted',
+      before_values: {
+        description: existing.description,
+        amount: existing.amount,
+        aim: existing.aim,
+        date: existing.date,
+        receipt_url: existing.receipt_url,
+      },
+      after_values: {},
+      performed_by: auth.member.id,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

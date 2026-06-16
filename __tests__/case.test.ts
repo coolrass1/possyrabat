@@ -203,6 +203,30 @@ describe('Case Management', () => {
       expect(retrieved?.stage).toBe('hearing scheduled');
       expect(retrieved?.next_hearing_date).toBe(newHearingDate);
     });
+
+    it('returns the full case record including opened_date after an edit', async () => {
+      const openedDate = new Date('2024-01-15').getTime();
+      const caseData = {
+        title: 'Members v. Occupiers',
+        opposing_party: 'Unauthorized Occupiers Group',
+        court: 'District Court of Lagos',
+        stage: 'in progress' as const,
+        summary: 'Dispute over land parcels',
+        opened_date: openedDate,
+        next_hearing_date: null,
+      };
+
+      const createdCase = await createCase(caseData, 'committee-1');
+
+      const updated = await editCase(
+        createdCase.id,
+        { stage: 'awaiting ruling' as const },
+        'committee-1'
+      );
+
+      // opened_date must survive the edit and be present on the returned record
+      expect(updated.opened_date).toBe(openedDate);
+    });
   });
 
   describe('soft delete', () => {

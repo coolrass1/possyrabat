@@ -4,6 +4,7 @@ import { createCase } from '../app/api/case/actions';
 import {
   uploadCaseDocument,
   getCaseDocuments,
+  getCaseDocumentFile,
   deleteCaseDocument,
   createCaseAction,
   getCaseActions,
@@ -137,6 +138,58 @@ describe('Case Documents & Actions', () => {
       // Verify it's gone (soft-delete)
       documents = await getCaseDocuments(createdCase.id);
       expect(documents).toHaveLength(0);
+    });
+
+    it('returns the stored file content and filename for download', async () => {
+      const createdCase = await createCase(
+        {
+          title: 'Test Case',
+          opposing_party: 'Test Party',
+          court: 'Test Court',
+          stage: 'filed' as const,
+          summary: 'Test',
+          opened_date: Date.now(),
+          next_hearing_date: null,
+        },
+        committeeId
+      );
+
+      const fileContent = Buffer.from('PDF-BYTES-HERE');
+      const doc = await uploadCaseDocument(
+        { case_id: createdCase.id, filename: 'ruling.pdf', fileContent },
+        committeeId
+      );
+
+      const file = await getCaseDocumentFile(doc.id);
+
+      expect(file).not.toBeNull();
+      expect(file!.filename).toBe('ruling.pdf');
+      expect(file!.content.equals(fileContent)).toBe(true);
+    });
+
+    it('returns null for a deleted document so it cannot be downloaded', async () => {
+      const createdCase = await createCase(
+        {
+          title: 'Test Case',
+          opposing_party: 'Test Party',
+          court: 'Test Court',
+          stage: 'filed' as const,
+          summary: 'Test',
+          opened_date: Date.now(),
+          next_hearing_date: null,
+        },
+        committeeId
+      );
+
+      const doc = await uploadCaseDocument(
+        { case_id: createdCase.id, filename: 'secret.pdf', fileContent: Buffer.from('x') },
+        committeeId
+      );
+
+      await deleteCaseDocument(doc.id);
+
+      const file = await getCaseDocumentFile(doc.id);
+      expect(file).toBeNull();
     });
   });
 

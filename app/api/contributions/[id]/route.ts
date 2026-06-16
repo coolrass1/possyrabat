@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
+import { createAuditLog } from '@/lib/audit';
 import db from '@/lib/db';
 
 function requireCommittee(request: NextRequest) {
@@ -75,6 +76,37 @@ export async function PATCH(request: NextRequest, context: any) {
     db.prepare(`UPDATE contributions SET ${updates.join(', ')} WHERE id = ?`).run(...values);
 
     const updated = db.prepare('SELECT * FROM contributions WHERE id = ?').get(id) as any;
+
+    // Log the update
+    const beforeValues: Record<string, any> = {};
+    const afterValues: Record<string, any> = {};
+
+    if (amount !== undefined) {
+      beforeValues.amount = existing.amount;
+      afterValues.amount = amount;
+    }
+    if (date !== undefined) {
+      beforeValues.date = existing.date;
+      afterValues.date = date;
+    }
+    if (method !== undefined) {
+      beforeValues.method = existing.method;
+      afterValues.method = method;
+    }
+    if (notes !== undefined) {
+      beforeValues.notes = existing.notes;
+      afterValues.notes = notes;
+    }
+
+    await createAuditLog({
+      entity_type: 'contribution',
+      entity_id: id,
+      action: 'updated',
+      before_values: Object.keys(beforeValues).length > 0 ? beforeValues : null,
+      after_values: afterValues,
+      performed_by: auth.member.id,
+    });
+
     return NextResponse.json({
       id: updated.id,
       member_id: updated.member_id,
@@ -111,6 +143,22 @@ export async function DELETE(request: NextRequest, context: any) {
     }
 
     db.prepare('UPDATE contributions SET deleted_at = ? WHERE id = ?').run(Date.now(), id);
+
+    // Log the deletion
+    await createAuditLog({
+      entity_type: 'contribution',
+      entity_id: id,
+      action: 'deleted',
+      before_values: {
+        member_id: existing.member_id,
+        amount: existing.amount,
+        date: existing.date,
+        method: existing.method,
+        notes: existing.notes,
+      },
+      after_values: {},
+      performed_by: auth.member.id,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

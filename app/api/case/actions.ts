@@ -188,6 +188,7 @@ export async function editCase(
   return {
     id: caseId,
     ...updated,
+    opened_date: existing.opened_date,
     created_by: existing.created_by,
     created_at: existing.created_at,
     updated_at: now,

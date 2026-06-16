@@ -191,6 +191,32 @@ describe('Home Screen - Five Pillars', () => {
       expect(snapshot.byAim.construction).toBe(300);
       expect(snapshot.byAim.security).toBe(150);
     });
+
+    it('includes this month contributions, excluding earlier months', async () => {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15).getTime();
+
+      // This month: 200 + 50
+      db.prepare(`
+        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), memberId, 200, monthStart, committeeId, monthStart);
+      db.prepare(`
+        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), memberId, 50, Date.now(), committeeId, Date.now());
+
+      // Last month: should be excluded
+      db.prepare(`
+        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), memberId, 999, lastMonth, committeeId, lastMonth);
+
+      const snapshot = await getFundSnapshot();
+
+      expect(snapshot.thisMonthContributions).toBe(250);
+    });
   });
 
   describe('activity feed', () => {

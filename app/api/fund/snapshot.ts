@@ -6,6 +6,7 @@ export interface FundSnapshot {
   totalContributions: number;
   totalExpenses: number;
   balance: number;
+  thisMonthContributions: number;
   byAim: {
     court_case: number;
     construction: number;
@@ -40,10 +41,19 @@ export async function getFundSnapshot(): Promise<FundSnapshot> {
       'SELECT SUM(amount) as total FROM expenses WHERE aim = ? AND deleted_at IS NULL'
     ).get('security') as any).total || 0);
 
+  // Contributions recorded since the start of the current calendar month
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const thisMonthContributions =
+    ((db.prepare(
+      'SELECT SUM(amount) as total FROM contributions WHERE date >= ? AND deleted_at IS NULL'
+    ).get(monthStart) as any).total || 0);
+
   return {
     totalContributions,
     totalExpenses,
     balance: totalContributions - totalExpenses,
+    thisMonthContributions,
     byAim: {
       court_case: courtCase,
       construction,

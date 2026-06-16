@@ -1,7 +1,7 @@
 'use server';
 
 import { randomUUID } from 'crypto';
-import { writeFileSync, mkdirSync, unlinkSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, mkdirSync, unlinkSync, existsSync } from 'fs';
 import { join } from 'path';
 import db from '@/lib/db';
 import { CaseDocument, CaseAction } from '@/lib/types';
@@ -90,6 +90,23 @@ export async function getCaseDocuments(caseId: string): Promise<CaseDocument[]> 
   `).all(caseId) as any[];
 
   return rows.map(rowToDocument);
+}
+
+export async function getCaseDocumentFile(
+  documentId: string
+): Promise<{ filename: string; content: Buffer } | null> {
+  const doc = db.prepare(`
+    SELECT * FROM case_documents WHERE id = ? AND deleted_at IS NULL
+  `).get(documentId) as any;
+
+  if (!doc || !doc.storage_path || !existsSync(doc.storage_path)) {
+    return null;
+  }
+
+  return {
+    filename: doc.filename,
+    content: readFileSync(doc.storage_path),
+  };
 }
 
 export async function deleteCaseDocument(documentId: string): Promise<void> {

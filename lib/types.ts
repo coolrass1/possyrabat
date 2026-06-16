@@ -76,3 +76,14 @@ export interface CaseAction {
   created_at: number;
   updated_at: number;
 }
+
+export interface AuditEntry {
+  id: string;
+  entity_type: 'contribution' | 'expense' | 'case' | 'case_step' | 'member' | 'parcel';
+  entity_id: string;
+  action: 'created' | 'updated' | 'deleted';
+  before_values: Record<string, any> | null;
+  after_values: Record<string, any>;
+  performed_by: string;
+  created_at: number;
+}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
+import { createAuditLog } from '@/lib/audit';
 import db from '@/lib/db';
 import { randomBytes } from 'crypto';
 
@@ -50,6 +51,16 @@ export async function POST(request: NextRequest) {
       'INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
     insertStmt.run(contribId, member_id, amount, date, method || null, notes || null, member.id, now);
+
+    // Log to audit trail
+    await createAuditLog({
+      entity_type: 'contribution',
+      entity_id: contribId,
+      action: 'created',
+      before_values: null,
+      after_values: { member_id, amount, date, method: method || null, notes: notes || null },
+      performed_by: member.id,
+    });
 
     return NextResponse.json(
       {

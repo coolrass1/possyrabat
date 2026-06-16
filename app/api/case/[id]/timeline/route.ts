@@ -4,7 +4,7 @@ import { getCaseTimeline } from '../../actions';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const sessionId = request.cookies.get('session_id')?.value;
@@ -17,7 +17,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const timeline = await getCaseTimeline(params.id);
+    const { id } = await params;
+    const timeline = await getCaseTimeline(id);
     return NextResponse.json(timeline);
   } catch (error) {
     console.error('Timeline retrieval error:', error);

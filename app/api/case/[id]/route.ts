@@ -4,7 +4,7 @@ import { getCaseById, editCase } from '../actions';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const sessionId = request.cookies.get('session_id')?.value;
@@ -17,7 +17,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const caseRecord = await getCaseById(params.id);
+    const { id } = await params;
+    const caseRecord = await getCaseById(id);
     if (!caseRecord) {
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     }
@@ -31,7 +32,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const sessionId = request.cookies.get('session_id')?.value;
@@ -49,8 +50,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden - committee only' }, { status: 403 });
     }
 
+    const { id } = await params;
     const updates = await request.json();
-    const updated = await editCase(params.id, updates, member.id);
+    const updated = await editCase(id, updates, member.id);
 
     return NextResponse.json(updated);
   } catch (error: any) {

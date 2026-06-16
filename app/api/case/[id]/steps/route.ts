@@ -4,7 +4,7 @@ import { logCaseStep } from '../../actions';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const sessionId = request.cookies.get('session_id')?.value;
@@ -22,6 +22,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden - committee only' }, { status: 403 });
     }
 
+    const { id } = await params;
     const { date, description, type, document_url } = await request.json();
 
     if (!date || !description || !type) {
@@ -30,7 +31,7 @@ export async function POST(
 
     const step = await logCaseStep(
       {
-        case_id: params.id,
+        case_id: id,
         date,
         description,
         type,

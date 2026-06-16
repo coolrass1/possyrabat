@@ -52,7 +52,16 @@ function initializeDb() {
       recorded_by TEXT NOT NULL,
       status TEXT DEFAULT 'recorded',
       created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
       FOREIGN KEY (recorded_by) REFERENCES members(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      id TEXT PRIMARY KEY,
+      per_parcel_fee REAL NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      updated_by TEXT,
+      updated_at INTEGER
     );
   `);
 }
@@ -102,6 +111,12 @@ async function seed() {
   try {
     insertMemberStmt.run(committee.id, committee.email, committeePasswordHash, committee.name, 0, 'committee', now);
     console.log('✅ Admin user created: admin@possyrabat.local / admin123');
+
+    // Set per-parcel fee = €50
+    db.prepare(
+      'INSERT OR REPLACE INTO settings (id, per_parcel_fee, currency, updated_by, updated_at) VALUES (?, ?, ?, ?, ?)'
+    ).run('global', 50, 'EUR', committee.id, now);
+    console.log('✅ Per-parcel fee set: €50/parcel');
 
     for (const member of members) {
       const passwordHash = bcrypt.hashSync(member.password, 10);

@@ -20,9 +20,20 @@ interface History {
   pages: number;
 }
 
+interface Standing {
+  parcel_count: number;
+  per_parcel_fee: number;
+  obligation: number;
+  paid: number;
+  balance: number;
+  status: string;
+  currency: string;
+}
+
 export default function ContributionsPage() {
   const router = useRouter();
   const [history, setHistory] = useState<History | null>(null);
+  const [standing, setStanding] = useState<Standing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
 
@@ -44,6 +55,21 @@ export default function ContributionsPage() {
 
     fetchHistory();
   }, [page, router]);
+
+  useEffect(() => {
+    const fetchStanding = async () => {
+      try {
+        const res = await fetch('/api/contributions/my-standing');
+        if (res.ok) {
+          setStanding(await res.json());
+        }
+      } catch (err) {
+        console.error('Error fetching standing:', err);
+      }
+    };
+
+    fetchStanding();
+  }, []);
 
   if (isLoading) {
     return (
@@ -76,6 +102,39 @@ export default function ContributionsPage() {
       </nav>
 
       <main className="max-w-6xl mx-auto p-8">
+        {standing && (
+          <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mb-8">
+            <h2 className="text-3xl font-bold text-[#16291F] mb-2 font-serif">My Standing</h2>
+            <p className="text-[#7C9A5E] mb-6">
+              For your {standing.parcel_count} parcels you owe €{standing.obligation.toFixed(2)};
+              {' '}paid €{standing.paid.toFixed(2)}.
+            </p>
+            <div className="grid grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Obligation</p>
+                <p className="text-2xl font-bold text-[#16291F]">€{standing.obligation.toFixed(2)}</p>
+                <p className="text-xs text-[#7C9A5E] mt-1">
+                  {standing.parcel_count} × €{standing.per_parcel_fee}/parcel
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Paid</p>
+                <p className="text-2xl font-bold text-[#C79A45]">€{standing.paid.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Status</p>
+                <span
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium text-white ${
+                    standing.balance >= 0 ? 'bg-[#7C9A5E]' : 'bg-[#B5532E]'
+                  }`}
+                >
+                  {standing.status}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8">
           <h2 className="text-3xl font-bold text-[#16291F] mb-6 font-serif">Contribution History</h2>
 

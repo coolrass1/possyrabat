@@ -72,6 +72,14 @@ export function initializeDb() {
       last_reconciled_at INTEGER,
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      id TEXT PRIMARY KEY,
+      per_parcel_fee REAL NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      updated_by TEXT,
+      updated_at INTEGER
+    );
   `);
 }
 

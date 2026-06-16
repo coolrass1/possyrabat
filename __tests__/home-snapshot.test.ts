@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import db from '../lib/db';
 import { createCase } from '../app/api/case/actions';
 import { getFundSnapshot } from '../app/api/fund/snapshot';
+import { getActivityFeed } from '../app/api/activity/feed';
 
 describe('Home Screen - Five Pillars', () => {
   let committeeId: string;
@@ -189,6 +190,78 @@ describe('Home Screen - Five Pillars', () => {
       expect(snapshot.byAim.court_case).toBe(200);
       expect(snapshot.byAim.construction).toBe(300);
       expect(snapshot.byAim.security).toBe(150);
+    });
+  });
+
+  describe('activity feed', () => {
+    it('getActivityFeed returns recent events in reverse chronological order', async () => {
+      const now = Date.now();
+      const oneHourAgo = now - 60 * 60 * 1000;
+      const twoHoursAgo = now - 2 * 60 * 60 * 1000;
+      const threeHoursAgo = now - 3 * 60 * 60 * 1000;
+
+      // Create a case
+      const caseData = {
+        title: 'Members v. Occupiers',
+        opposing_party: 'Occupiers',
+        court: 'Court',
+        stage: 'filed' as const,
+        summary: 'Test',
+        opened_date: now,
+        next_hearing_date: null,
+      };
+      const createdCase = await createCase(caseData, committeeId);
+
+      // Add events in scrambled order
+      // Case step (oldest)
+      db.prepare(`
+        INSERT INTO case_steps (id, case_id, date, description, type, logged_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        randomUUID(),
+        createdCase.id,
+        threeHoursAgo,
+        'Case filed',
+        'filing',
+        committeeId,
+        threeHoursAgo
+      );
+
+      // Contribution (middle)
+      db.prepare(`
+        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), memberId, 500, twoHoursAgo, committeeId, twoHoursAgo);
+
+      // Expense (newest)
+      db.prepare(`
+        INSERT INTO expenses (id, description, amount, aim, date, recorded_by, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        randomUUID(),
+        'Court fee',
+        200,
+        'court_case',
+        oneHourAgo,
+        committeeId,
+        'recorded',
+        oneHourAgo
+      );
+
+      // Get feed
+      const feed = await getActivityFeed(10);
+
+      expect(feed).toHaveLength(3);
+
+      // Should be in reverse chronological order (newest first)
+      expect(feed[0].type).toBe('expense');
+      expect(feed[0].timestamp).toBe(oneHourAgo);
+
+      expect(feed[1].type).toBe('contribution');
+      expect(feed[1].timestamp).toBe(twoHoursAgo);
+
+      expect(feed[2].type).toBe('case_step');
+      expect(feed[2].timestamp).toBe(threeHoursAgo);
     });
   });
 });

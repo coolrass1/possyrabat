@@ -29,6 +29,15 @@ interface FundData {
   };
 }
 
+interface ActivityItem {
+  id: string;
+  type: 'contribution' | 'expense' | 'case_step';
+  timestamp: number;
+  title: string;
+  description: string;
+  amount?: number;
+}
+
 const AIM_LABELS: Record<string, string> = {
   court_case: 'Court Case',
   construction: 'Construction',
@@ -40,6 +49,7 @@ export default function Home() {
   const [member, setMember] = useState<Member | null>(null);
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [fundData, setFundData] = useState<FundData | null>(null);
+  const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -72,6 +82,16 @@ export default function Home() {
             }
           } catch (err) {
             console.error('Error fetching fund data:', err);
+          }
+
+          // Fetch activity feed
+          try {
+            const activityRes = await fetch('/api/activity?limit=10');
+            if (activityRes.ok) {
+              setActivityFeed(await activityRes.json());
+            }
+          } catch (err) {
+            console.error('Error fetching activity feed:', err);
           }
         } else {
           router.push('/login');
@@ -220,6 +240,52 @@ export default function Home() {
                 </a>
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Activity Feed */}
+        <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mb-8">
+          <h2 className="text-2xl font-bold text-[#16291F] mb-6 font-serif">Recent Activity</h2>
+
+          {activityFeed.length > 0 ? (
+            <div className="space-y-4">
+              {activityFeed.map((item) => (
+                <div
+                  key={item.id}
+                  className={`p-4 rounded-lg border-l-4 ${
+                    item.type === 'contribution'
+                      ? 'bg-[#7C9A5E] bg-opacity-5 border-[#7C9A5E]'
+                      : item.type === 'expense'
+                      ? 'bg-[#C79A45] bg-opacity-5 border-[#C79A45]'
+                      : 'bg-[#B5532E] bg-opacity-5 border-[#B5532E]'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <p className="font-semibold text-[#16291F]">{item.title}</p>
+                    <span className="text-xs text-[#7C9A5E]">
+                      {new Date(item.timestamp).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-[#16291F]">{item.description}</p>
+                  {item.amount && (
+                    <p
+                      className={`text-sm font-semibold mt-2 ${
+                        item.type === 'contribution' ? 'text-[#7C9A5E]' : 'text-[#C79A45]'
+                      }`}
+                    >
+                      €{item.amount}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[#7C9A5E] text-center py-8">No recent activity</p>
           )}
         </div>
 

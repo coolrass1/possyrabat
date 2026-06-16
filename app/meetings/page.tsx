@@ -14,6 +14,12 @@ export default function MeetingsPage() {
   const [newDecisionText, setNewDecisionText] = useState('');
   const [actions, setActions] = useState<MeetingAction[]>([]);
   const [newActionTask, setNewActionTask] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [meetingForm, setMeetingForm] = useState({
+    title: '',
+    date: new Date().toISOString().slice(0, 16), // datetime-local
+    notes: '',
+  });
 
   useEffect(() => {
     const checkSession = async () => {
@@ -44,6 +50,32 @@ export default function MeetingsPage() {
       }
     } catch (err) {
       console.error('Error fetching meetings:', err);
+    }
+  };
+
+  const handleCreateMeeting = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!meetingForm.title.trim() || !meetingForm.date) return;
+    try {
+      const res = await fetch('/api/meetings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: meetingForm.title,
+          date: new Date(meetingForm.date).getTime(),
+          notes: meetingForm.notes || null,
+          attendees: [],
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setMeetings([created, ...meetings]);
+        setMeetingForm({ title: '', date: new Date().toISOString().slice(0, 16), notes: '' });
+        setShowCreateForm(false);
+        selectMeeting(created);
+      }
+    } catch (err) {
+      console.error('Error creating meeting:', err);
     }
   };
 
@@ -142,7 +174,56 @@ export default function MeetingsPage() {
     <div className="min-h-screen bg-[#16291F]">
 
       <main className="max-w-6xl mx-auto p-8">
-        <h2 className="text-3xl font-bold text-[#F3ECDD] mb-8 font-serif">Meetings</h2>
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-3xl font-bold text-[#F3ECDD] font-serif">Meetings</h2>
+          {userRole !== 'member' && (
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="px-4 py-2 bg-[#C79A45] text-[#16291F] rounded-md font-semibold hover:bg-[#b8894a] transition-colors"
+            >
+              {showCreateForm ? 'Cancel' : 'New Meeting'}
+            </button>
+          )}
+        </div>
+
+        {userRole !== 'member' && showCreateForm && (
+          <form onSubmit={handleCreateMeeting} className="bg-[#F3ECDD] rounded-lg shadow-lg p-6 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-[#16291F] mb-2">Title</label>
+              <input
+                required
+                value={meetingForm.title}
+                onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })}
+                placeholder="e.g. Monthly meeting"
+                className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md text-[#16291F] focus:outline-none focus:border-[#C79A45]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-[#16291F] mb-2">Date & time</label>
+              <input
+                required
+                type="datetime-local"
+                value={meetingForm.date}
+                onChange={(e) => setMeetingForm({ ...meetingForm, date: e.target.value })}
+                className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md text-[#16291F] focus:outline-none focus:border-[#C79A45]"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-[#16291F] mb-2">Notes / agenda (optional)</label>
+              <textarea
+                value={meetingForm.notes}
+                onChange={(e) => setMeetingForm({ ...meetingForm, notes: e.target.value })}
+                rows={2}
+                className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md text-[#16291F] focus:outline-none focus:border-[#C79A45]"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <button type="submit" className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md font-semibold hover:bg-[#6a8a4f] transition-colors">
+                Create Meeting
+              </button>
+            </div>
+          </form>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Meetings List */}

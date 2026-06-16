@@ -199,6 +199,21 @@ export function initializeDb() {
       FOREIGN KEY (meeting_id) REFERENCES meetings(id),
       FOREIGN KEY (decided_by) REFERENCES members(id)
     );
+
+    CREATE TABLE IF NOT EXISTS events (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      date INTEGER NOT NULL,
+      time TEXT NOT NULL,
+      location TEXT,
+      type TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (created_by) REFERENCES members(id)
+    );
   `);
 }
 

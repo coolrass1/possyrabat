@@ -135,3 +135,16 @@ export interface MeetingDecision {
   decided_by: string;
   created_at: number;
 }
+
+export interface Event {
+  id: string;
+  title: string;
+  description: string | null;
+  date: number;
+  time: string; // HH:MM format
+  location: string | null;
+  type: 'meeting' | 'event' | 'announcement';
+  created_by: string;
+  created_at: number;
+  updated_at: number;
+}

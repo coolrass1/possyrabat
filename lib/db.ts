@@ -252,6 +252,7 @@ export function initializeDb() {
     }
   };
   addColumn(`ALTER TABLE members ADD COLUMN status TEXT DEFAULT 'active'`);
+  addColumn(`ALTER TABLE settings ADD COLUMN rules_text TEXT`);
 }
 
 // Ensure the schema exists whenever the db module is loaded (idempotent).

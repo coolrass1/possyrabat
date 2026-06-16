@@ -37,3 +37,28 @@ export function setPerParcelFee(fee: number, updatedBy: string): Settings {
 
   return getSettings();
 }
+
+export function getRules(): string {
+  const row = db.prepare('SELECT rules_text FROM settings WHERE id = ?').get(SETTINGS_ID) as any;
+  return row?.rules_text ?? '';
+}
+
+export function setRules(rulesText: string, updatedBy: string): string {
+  const now = Date.now();
+  const existing = db.prepare('SELECT id FROM settings WHERE id = ?').get(SETTINGS_ID);
+
+  if (existing) {
+    db.prepare('UPDATE settings SET rules_text = ?, updated_by = ?, updated_at = ? WHERE id = ?').run(
+      rulesText,
+      updatedBy,
+      now,
+      SETTINGS_ID
+    );
+  } else {
+    db.prepare(
+      'INSERT INTO settings (id, per_parcel_fee, currency, rules_text, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(SETTINGS_ID, 0, 'EUR', rulesText, updatedBy, now);
+  }
+
+  return getRules();
+}

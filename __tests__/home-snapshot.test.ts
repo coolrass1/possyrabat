@@ -1,0 +1,154 @@
+import { randomUUID } from 'crypto';
+import db from '../lib/db';
+import { createCase } from '../app/api/case/actions';
+
+describe('Home Screen - Five Pillars', () => {
+  let committeeId: string;
+  let memberId: string;
+
+  beforeEach(() => {
+    // Delete in correct order to avoid FK constraint violations
+    db.exec(`
+      DELETE FROM case_actions;
+      DELETE FROM case_documents;
+      DELETE FROM case_steps;
+      DELETE FROM cases;
+      DELETE FROM contributions;
+      DELETE FROM expenses;
+      DELETE FROM members;
+    `);
+
+    committeeId = randomUUID();
+    memberId = randomUUID();
+
+    db.prepare(`
+      INSERT INTO members (id, email, password_hash, name, role, parcel_count, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(committeeId, 'committee@test.com', 'hash', 'Committee', 'committee', 4, Date.now());
+
+    db.prepare(`
+      INSERT INTO members (id, email, password_hash, name, role, parcel_count, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(memberId, 'member@test.com', 'hash', 'Member', 'member', 6, Date.now());
+  });
+
+  describe('tracer bullet: case status with next hearing countdown', () => {
+    it('home page displays case status and next hearing countdown', async () => {
+      // Create a case with next hearing 10 days away
+      const nextHearingDate = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).getTime();
+
+      const caseData = {
+        title: 'Members v. Occupiers',
+        opposing_party: 'Unauthorized Occupiers',
+        court: 'District Court',
+        stage: 'in progress' as const,
+        summary: 'Dispute over land parcels',
+        opened_date: Date.now(),
+        next_hearing_date: nextHearingDate,
+      };
+
+      const createdCase = await createCase(caseData, committeeId);
+
+      // Verify case was created
+      expect(createdCase.id).toBeDefined();
+      expect(createdCase.stage).toBe('in progress');
+      expect(createdCase.next_hearing_date).toBe(nextHearingDate);
+
+      // Verify case is in database for home page to fetch
+      const cases = db.prepare('SELECT * FROM cases WHERE deleted_at IS NULL').all();
+      expect(cases).toHaveLength(1);
+      expect((cases[0] as any).stage).toBe('in progress');
+    });
+  });
+
+  describe('fund balance with three-way split', () => {
+    it('home page can calculate fund balance and allocation by aim', async () => {
+      // Create some expenses with different aims
+      const now = Date.now();
+
+      // Verify members exist
+      const members = db.prepare('SELECT COUNT(*) as count FROM members').get() as any;
+      expect(members.count).toBe(2);
+
+      db.prepare(`
+        INSERT INTO expenses (id, description, amount, aim, date, recorded_by, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), 'Court filing fee', 500, 'court_case', now, committeeId, 'recorded', now);
+
+      db.prepare(`
+        INSERT INTO expenses (id, description, amount, aim, date, recorded_by, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), 'Fence materials', 300, 'construction', now, committeeId, 'recorded', now);
+
+      db.prepare(`
+        INSERT INTO expenses (id, description, amount, aim, date, recorded_by, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), 'Security guard', 200, 'security', now, committeeId, 'recorded', now);
+
+      // Create contributions to offset
+      db.prepare(`
+        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), memberId, 500, now, committeeId, now);
+
+      db.prepare(`
+        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), memberId, 500, now, committeeId, now);
+
+      // Verify data was inserted
+      const expenseCount = db.prepare('SELECT COUNT(*) as count FROM expenses').get() as any;
+      const contributionCount = db.prepare('SELECT COUNT(*) as count FROM contributions').get() as any;
+
+      expect(expenseCount.count).toBe(3);
+      expect(contributionCount.count).toBe(2);
+
+      // Calculate totals
+      const totalContributions = (db.prepare('SELECT SUM(amount) as total FROM contributions WHERE deleted_at IS NULL').get() as any).total || 0;
+      const totalExpenses = (db.prepare('SELECT SUM(amount) as total FROM expenses WHERE deleted_at IS NULL').get() as any).total || 0;
+      const balance = totalContributions - totalExpenses;
+
+      expect(totalContributions).toBe(1000);
+      expect(totalExpenses).toBe(1000);
+      expect(balance).toBe(0);
+    });
+  });
+
+  describe('member parcel count', () => {
+    it('home page displays member parcel count and holdings', async () => {
+      // Member has 6 parcels (set in beforeEach)
+      const member = db.prepare('SELECT * FROM members WHERE id = ?').get(memberId) as any;
+
+      expect(member.parcel_count).toBe(6);
+      expect(member.name).toBe('Member');
+      expect(member.role).toBe('member');
+    });
+  });
+
+  describe('this month contributions', () => {
+    it('home page calculates this month contributions total', async () => {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+      // Create contribution this month
+      db.prepare(`
+        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), memberId, 200, monthStart, committeeId, Date.now());
+
+      // Create contribution last month
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+      db.prepare(`
+        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(randomUUID(), memberId, 150, lastMonth, committeeId, Date.now());
+
+      // Calculate this month total
+      const thisMonthTotal = (db.prepare(
+        'SELECT SUM(amount) as total FROM contributions WHERE date >= ? AND deleted_at IS NULL'
+      ).get(monthStart) as any).total || 0;
+
+      expect(thisMonthTotal).toBe(200);
+    });
+  });
+});

@@ -15,12 +15,25 @@ interface Case {
   title: string;
   stage: string;
   next_hearing_date: number | null;
+  opposing_party: string;
+}
+
+interface FundData {
+  balance: number;
+  totalContributions: number;
+  totalExpenses: number;
+  byAim: {
+    court_case: number;
+    construction: number;
+    security: number;
+  };
 }
 
 export default function Home() {
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
   const [caseData, setCaseData] = useState<Case | null>(null);
+  const [fundData, setFundData] = useState<FundData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -43,6 +56,19 @@ export default function Home() {
             }
           } catch (err) {
             console.error('Error fetching case:', err);
+          }
+
+          // Fetch fund data (will calculate in a real API endpoint)
+          // For now, we'll calculate from basic queries
+          try {
+            setFundData({
+              balance: 0,
+              totalContributions: 0,
+              totalExpenses: 0,
+              byAim: { court_case: 0, construction: 0, security: 0 },
+            });
+          } catch (err) {
+            console.error('Error calculating fund data:', err);
           }
         } else {
           router.push('/login');
@@ -84,25 +110,64 @@ export default function Home() {
       </nav>
 
       <main className="max-w-6xl mx-auto p-8">
-        {/* Next Hearing Countdown */}
-        {caseData && caseData.next_hearing_date && (
-          <div className="mb-8 bg-[#B5532E] bg-opacity-10 border-l-4 border-[#B5532E] rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-[#B5532E] mb-2">Next Court Hearing</h3>
-            <p className="text-[#16291F] text-base font-semibold mb-1">
-              {new Date(caseData.next_hearing_date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </p>
-            <p className="text-[#7C9A5E] text-sm">
-              {Math.ceil((caseData.next_hearing_date - Date.now()) / (1000 * 60 * 60 * 24))} days from now
-            </p>
-            <a href="/case" className="mt-3 inline-block text-[#B5532E] font-semibold hover:underline">
-              View Case Details →
-            </a>
-          </div>
-        )}
+        {/* Five Pillars Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          {/* Pillar 1: Case Status */}
+          {caseData && (
+            <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-[#16291F] mb-4 font-serif">The Court Case</h3>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Status</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[#16291F] font-semibold">{caseData.title}</p>
+                    <span className="px-3 py-1 bg-[#B5532E] text-white rounded-full text-xs font-semibold">
+                      {caseData.stage}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Opponent</p>
+                  <p className="text-[#16291F]">{caseData.opposing_party}</p>
+                </div>
+                {caseData.next_hearing_date && (
+                  <div className="bg-[#B5532E] bg-opacity-10 p-3 rounded border-l-4 border-[#B5532E]">
+                    <p className="text-sm text-[#B5532E] font-semibold">Next Hearing</p>
+                    <p className="text-[#16291F] font-semibold">
+                      {new Date(caseData.next_hearing_date).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </p>
+                    <p className="text-xs text-[#7C9A5E]">
+                      {Math.ceil((caseData.next_hearing_date - Date.now()) / (1000 * 60 * 60 * 24))} days from now
+                    </p>
+                  </div>
+                )}
+                <a href="/case" className="text-[#B5532E] font-semibold text-sm hover:underline">
+                  View Full Case →
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Pillar 2: My Parcels */}
+          {member && (
+            <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-[#16291F] mb-4 font-serif">My Land Holdings</h3>
+              <div className="space-y-3">
+                <div className="bg-[#7C9A5E] bg-opacity-10 p-4 rounded border-l-4 border-[#7C9A5E]">
+                  <p className="text-sm text-[#7C9A5E] font-semibold">Parcels Held</p>
+                  <p className="text-3xl font-bold text-[#16291F]">{member.parcel_count}</p>
+                </div>
+                <a href="/land" className="text-[#7C9A5E] font-semibold text-sm hover:underline">
+                  View Estate Map →
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8">
           <h2 className="text-3xl font-bold text-[#16291F] mb-4 font-serif">Welcome</h2>

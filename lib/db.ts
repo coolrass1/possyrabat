@@ -36,6 +36,40 @@ export function initializeDb() {
       uploaded_at INTEGER NOT NULL,
       FOREIGN KEY (uploaded_by) REFERENCES members(id)
     );
+
+    CREATE TABLE IF NOT EXISTS contributions (
+      id TEXT PRIMARY KEY,
+      member_id TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date INTEGER NOT NULL,
+      method TEXT,
+      notes TEXT,
+      recorded_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (member_id) REFERENCES members(id),
+      FOREIGN KEY (recorded_by) REFERENCES members(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS expenses (
+      id TEXT PRIMARY KEY,
+      description TEXT NOT NULL,
+      amount REAL NOT NULL,
+      aim TEXT NOT NULL,
+      date INTEGER NOT NULL,
+      receipt_url TEXT,
+      recorded_by TEXT NOT NULL,
+      status TEXT DEFAULT 'recorded',
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (recorded_by) REFERENCES members(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS fund_settings (
+      id TEXT PRIMARY KEY,
+      custodian_name TEXT,
+      account_masked TEXT,
+      last_reconciled_at INTEGER,
+      updated_at INTEGER NOT NULL
+    );
   `);
 }
 

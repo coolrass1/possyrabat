@@ -97,3 +97,58 @@ describe('Fund Balance & Allocation', () => {
     });
   });
 });
+
+describe('Fund custodian', () => {
+  beforeEach(() => {
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM fund_settings; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+  });
+
+  it('committee sets custodian; all members can read it', async () => {
+    const passwordHash = await hashPassword('test123');
+    const now = Date.now();
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run('committee-c', 'admin@example.com', passwordHash, 'Admin', 'committee', now);
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run('member-c', 'm@example.com', passwordHash, 'Member', 'member', now);
+
+    const committeeSession = createSession('committee-c');
+    const { PATCH } = await import('@/app/api/admin/fund/custodian/route');
+    const patchReq = {
+      cookies: { get: (n: string) => (n === 'session_id' ? { value: committeeSession.id } : undefined) },
+      json: async () => ({ custodian_name: 'Banque Populaire', account_masked: '****4321', last_reconciled_at: now }),
+    } as any;
+    const patchRes = await PATCH(patchReq);
+    expect(patchRes.status).toBe(200);
+
+    const memberSession = createSession('member-c');
+    const { GET } = await import('@/app/api/fund/custodian/route');
+    const getReq = {
+      cookies: { get: (n: string) => (n === 'session_id' ? { value: memberSession.id } : undefined) },
+    } as any;
+    const custodian = await (await GET(getReq)).json();
+
+    expect(custodian).toMatchObject({
+      custodian_name: 'Banque Populaire',
+      account_masked: '****4321',
+      last_reconciled_at: now,
+    });
+  });
+
+  it('regular member cannot set custodian', async () => {
+    const passwordHash = await hashPassword('test123');
+    const now = Date.now();
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run('member-c2', 'm2@example.com', passwordHash, 'Member', 'member', now);
+
+    const memberSession = createSession('member-c2');
+    const { PATCH } = await import('@/app/api/admin/fund/custodian/route');
+    const req = {
+      cookies: { get: (n: string) => (n === 'session_id' ? { value: memberSession.id } : undefined) },
+      json: async () => ({ custodian_name: 'Hacked Bank' }),
+    } as any;
+    expect((await PATCH(req)).status).toBe(403);
+  });
+});

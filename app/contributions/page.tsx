@@ -30,10 +30,23 @@ interface Standing {
   currency: string;
 }
 
+interface RosterEntry {
+  id: string;
+  name: string;
+  email: string;
+  parcel_count: number;
+  obligation: number;
+  paid: number;
+  balance: number;
+  status: string;
+}
+
 export default function ContributionsPage() {
   const router = useRouter();
   const [history, setHistory] = useState<History | null>(null);
   const [standing, setStanding] = useState<Standing | null>(null);
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [rosterSearch, setRosterSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
 
@@ -69,6 +82,22 @@ export default function ContributionsPage() {
     };
 
     fetchStanding();
+  }, []);
+
+  useEffect(() => {
+    const fetchRoster = async () => {
+      try {
+        const res = await fetch('/api/contributions/open-roster?limit=100');
+        if (res.ok) {
+          const data = await res.json();
+          setRoster(data.items || []);
+        }
+      } catch (err) {
+        console.error('Error fetching roster:', err);
+      }
+    };
+
+    fetchRoster();
   }, []);
 
   if (isLoading) {
@@ -189,6 +218,61 @@ export default function ContributionsPage() {
             <p className="text-[#7C9A5E]">No contributions recorded yet.</p>
           )}
         </div>
+
+        {/* Open roster — transparent accountability view */}
+        {roster.length > 0 && (
+          <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-[#16291F] font-serif">Open Roster</h2>
+              <input
+                type="search"
+                value={rosterSearch}
+                onChange={(e) => setRosterSearch(e.target.value)}
+                placeholder="Search member…"
+                className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-[#C79A45]">
+                    <th className="text-left py-3 text-[#16291F] font-semibold">Member</th>
+                    <th className="text-right py-3 text-[#16291F] font-semibold">Parcels</th>
+                    <th className="text-right py-3 text-[#16291F] font-semibold">Obligation</th>
+                    <th className="text-right py-3 text-[#16291F] font-semibold">Paid</th>
+                    <th className="text-left py-3 pl-6 text-[#16291F] font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roster
+                    .filter((m) =>
+                      (m.name || '').toLowerCase().includes(rosterSearch.toLowerCase())
+                    )
+                    .map((m) => (
+                      <tr key={m.id} className="border-b border-[#E8DCC8] hover:bg-[#F9F5F0]">
+                        <td className="py-3 text-[#16291F]">
+                          <div>{m.name}</div>
+                          <div className="text-xs text-[#7C9A5E]">{m.email}</div>
+                        </td>
+                        <td className="text-right py-3 text-[#16291F]">{m.parcel_count}</td>
+                        <td className="text-right py-3 font-mono text-[#16291F]">€{m.obligation.toFixed(2)}</td>
+                        <td className="text-right py-3 font-mono text-[#C79A45]">€{m.paid.toFixed(2)}</td>
+                        <td className="py-3 pl-6">
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-sm font-medium text-white ${
+                              m.balance >= 0 ? 'bg-[#7C9A5E]' : 'bg-[#B5532E]'
+                            }`}
+                          >
+                            {m.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -83,4 +83,8 @@ export function initializeDb() {
   `);
 }
 
+// Ensure the schema exists whenever the db module is loaded (idempotent).
+// The app has no migration step, so this guarantees tables for every route.
+initializeDb();
+
 export default db;

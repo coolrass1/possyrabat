@@ -312,7 +312,7 @@ export default function ContributionsPage() {
                   required
                   value={paymentForm.member_id}
                   onChange={(e) => setPaymentForm({ ...paymentForm, member_id: e.target.value })}
-                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
                 >
                   <option value="">Select member…</option>
                   {roster.map((m) => (
@@ -329,7 +329,7 @@ export default function ContributionsPage() {
                   placeholder="Amount"
                   value={paymentForm.amount}
                   onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
                 />
                 <input
                   required
@@ -337,12 +337,12 @@ export default function ContributionsPage() {
                   max={new Date().toISOString().slice(0, 10)}
                   value={paymentForm.date}
                   onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
-                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
                 />
                 <select
                   value={paymentForm.method}
                   onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
-                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
                 >
                   <option value="cash">Cash</option>
                   <option value="bank_transfer">Bank transfer</option>
@@ -353,7 +353,7 @@ export default function ContributionsPage() {
                   placeholder="Notes (optional)"
                   value={paymentForm.notes}
                   onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-                  className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45] md:col-span-2"
+                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45] md:col-span-2"
                 />
                 <button
                   type="submit"

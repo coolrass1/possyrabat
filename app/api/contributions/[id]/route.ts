@@ -17,8 +17,14 @@ function requireCommittee(request: NextRequest) {
   return { member };
 }
 
-function getId(context: any): string | undefined {
-  return context?.id || context?.params?.id;
+async function getId(context: any): Promise<string | undefined> {
+  // Handle both sync (test) and async (production) params
+  const params = context?.params;
+  if (typeof params?.then === 'function') {
+    const resolved = await params;
+    return resolved?.id || context?.id;
+  }
+  return params?.id || context?.id;
 }
 
 export async function PATCH(request: NextRequest, context: any) {
@@ -28,7 +34,7 @@ export async function PATCH(request: NextRequest, context: any) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const id = getId(context);
+    const id = await getId(context);
     if (!id) {
       return NextResponse.json({ error: 'Contribution ID required' }, { status: 400 });
     }
@@ -130,7 +136,7 @@ export async function DELETE(request: NextRequest, context: any) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const id = getId(context);
+    const id = await getId(context);
     if (!id) {
       return NextResponse.json({ error: 'Contribution ID required' }, { status: 400 });
     }

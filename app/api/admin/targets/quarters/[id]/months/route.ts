@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
 import { getQuarterById, listMonths, createMonth } from '@/lib/targets';
 
-function getId(context: any): string | undefined {
-  return context?.id || context?.params?.id;
+async function getId(context: any): Promise<string | undefined> {
+  const params = context?.params;
+  if (typeof params?.then === 'function') {
+    const resolved = await params;
+    return resolved?.id || context?.id;
+  }
+  return params?.id || context?.id;
 }
 
 function requireCommittee(request: NextRequest) {
@@ -30,24 +35,9 @@ export async function POST(
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const quarterId = getId(context);
+    const quarterId = await getId(context);
     if (!quarterId) {
       return NextResponse.json({ error: 'Quarter ID required' }, { status: 400 });
-    }
-    const sessionId = request.cookies.get('session_id')?.value;
-
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const session = getSessionById(sessionId);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const actor = getMemberById(session.member_id);
-    if (!actor || actor.role === 'member') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const quarter = getQuarterById(quarterId);
@@ -110,7 +100,7 @@ export async function GET(
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const quarterId = getId(context);
+    const quarterId = await getId(context);
     if (!quarterId) {
       return NextResponse.json({ error: 'Quarter ID required' }, { status: 400 });
     }

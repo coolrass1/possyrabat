@@ -99,7 +99,7 @@ describe('Open Roster & Contribution Transparency', () => {
       parcel_count: 6,
       obligation: 300,
       paid: 200,
-      balance: -100,
+      balance: 100,
       status: 'behind by €100',
     });
 

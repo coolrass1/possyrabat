@@ -399,8 +399,8 @@ export default function ContributionsPage() {
                           <Badge variant={s.status === 'up_to_date' ? 'moss' : 'clay'} className="font-bold">
                             {s.status === 'up_to_date' ? t('contributions.statusUpToDate') : t('contributions.statusBehind')}
                           </Badge>
-                          <span className={`text-sm font-bold font-mono ${s.balance >= 0 ? 'text-[#7C9A5E]' : 'text-[#B5532E]'}`}>
-                            {s.balance >= 0 ? `+€${s.balance.toLocaleString()}` : `-€${Math.abs(s.balance).toLocaleString()}`}
+                          <span className={`text-sm font-bold font-mono ${s.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
+                            {s.balance > 0 ? `€${s.balance.toLocaleString()}` : s.balance < 0 ? `+€${Math.abs(s.balance).toLocaleString()}` : '€0'}
                           </span>
                         </div>
                       </div>
@@ -416,8 +416,8 @@ export default function ContributionsPage() {
                         </div>
                         <div className="bg-[#e8dcc8]/30 p-3 rounded-lg flex flex-col justify-center">
                           <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.discrepancy')}</span>
-                          <span className={`text-base font-bold font-mono ${s.balance >= 0 ? 'text-[#7C9A5E]' : 'text-[#B5532E]'}`}>
-                            €{s.balance.toLocaleString()}
+                          <span className={`text-base font-bold font-mono ${s.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
+                            {s.balance > 0 ? `€${s.balance.toLocaleString()}` : s.balance < 0 ? `+€${Math.abs(s.balance).toLocaleString()}` : '€0'}
                           </span>
                         </div>
                       </div>
@@ -531,8 +531,8 @@ export default function ContributionsPage() {
                           <TableCell className="text-right py-3 font-mono font-semibold">{entry.parcel_count} {t('contributions.parcelsSuffix')}</TableCell>
                           <TableCell className="text-right py-3 font-mono">€{entry.obligation.toLocaleString()}</TableCell>
                           <TableCell className="text-right py-3 font-mono font-bold text-[#C79A45]">€{entry.paid.toLocaleString()}</TableCell>
-                          <TableCell className={`text-right py-3 font-mono font-semibold ${entry.balance >= 0 ? 'text-[#7C9A5E]' : 'text-[#B5532E]'}`}>
-                            {entry.balance >= 0 ? `+€${entry.balance.toLocaleString()}` : `-€${Math.abs(entry.balance).toLocaleString()}`}
+                          <TableCell className={`text-right py-3 font-mono font-semibold ${entry.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
+                            {entry.balance > 0 ? `€${entry.balance.toLocaleString()}` : entry.balance < 0 ? `+€${Math.abs(entry.balance).toLocaleString()}` : '€0'}
                           </TableCell>
                           <TableCell className="py-3">
                             <Badge variant={entry.status === 'up to date' ? 'moss' : 'clay'} className="font-bold text-[10px]">

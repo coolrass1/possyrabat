@@ -26,8 +26,9 @@ export async function GET(request: NextRequest) {
 
     const obligation = standings.reduce((sum, s) => sum + s.obligation, 0);
     const paid = standings.reduce((sum, s) => sum + s.paid, 0);
-    const balance = paid - obligation;
-    const status = balance >= 0 ? 'up to date' : `behind by €${Math.abs(balance)}`;
+    // balance = amount still owed (positive = behind, <= 0 = up to date)
+    const balance = obligation - paid;
+    const status = balance <= 0 ? 'up to date' : `behind by €${balance}`;
 
     const { currency } = getSettings();
 

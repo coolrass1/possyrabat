@@ -58,8 +58,9 @@ export async function GET(request: NextRequest) {
         .get(member.id) as any;
       const paid = paidResult?.total || 0;
 
-      const balance = paid - obligation;
-      const status = balance >= 0 ? 'up to date' : `behind by €${Math.abs(balance)}`;
+      // balance = amount still owed (positive = behind, <= 0 = up to date)
+      const balance = obligation - paid;
+      const status = balance <= 0 ? 'up to date' : `behind by €${balance}`;
 
       return {
         id: member.id,

@@ -12,6 +12,7 @@ interface SessionMember {
   id: string;
   name: string | null;
   role: 'member' | 'committee' | 'owner';
+  must_change_password?: boolean;
 }
 
 export default function Nav() {
@@ -90,6 +91,12 @@ export default function Nav() {
   }, [pathname]);
 
   useEffect(() => {
+    if (member?.must_change_password && pathname !== '/change-password') {
+      router.replace('/change-password');
+    }
+  }, [member, pathname, router]);
+
+  useEffect(() => {
     if (settingsLoaded && member && member.role === 'member') {
       const isAllowed = (path: string) => {
         if (path === '/') return true;
@@ -101,7 +108,7 @@ export default function Nav() {
     }
   }, [pathname, member, enabledSections, settingsLoaded, router]);
 
-  if (pathname === '/login' || !member) return null;
+  if (pathname === '/login' || pathname === '/change-password' || !member) return null;
 
   const isCommittee = member.role === 'committee' || member.role === 'owner';
   

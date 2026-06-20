@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
           name: member.name,
           role: member.role,
           parcel_count: member.parcel_count,
+          must_change_password: member.must_change_password,
         },
       },
       { status: 200 }

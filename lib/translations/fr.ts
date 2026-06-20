@@ -337,5 +337,16 @@ export const fr: TranslationSchema = {
     sections: 'Contrôle des sections',
     members: 'Liste des membres',
     saveSuccess: 'Obligations enregistrées avec succès'
+  },
+  changePassword: {
+    title: 'Changez votre mot de passe',
+    subtitle: 'Pour des raisons de sécurité, veuillez définir un nouveau mot de passe avant de continuer.',
+    newPassword: 'Nouveau mot de passe',
+    confirm: 'Confirmer le mot de passe',
+    submit: 'Mettre à jour le mot de passe',
+    saving: 'Enregistrement...',
+    tooShort: 'Le mot de passe doit comporter au moins 8 caractères.',
+    mismatch: 'Les mots de passe ne correspondent pas.',
+    failed: 'Impossible de changer le mot de passe. Veuillez réessayer.'
   }
 };

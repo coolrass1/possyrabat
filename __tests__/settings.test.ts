@@ -87,6 +87,7 @@ describe('Global Settings & Section Controls', () => {
   describe('API Endpoints', () => {
     let memberSessionId: string;
     let adminSessionId: string;
+    let ownerSessionId: string;
 
     beforeEach(() => {
       const now = Date.now();
@@ -101,6 +102,12 @@ describe('Global Settings & Section Controls', () => {
         'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
       ).run('admin-1', 'admin@example.com', 'hash', 'Admin User', 'committee', now);
       adminSessionId = createSession('admin-1').id;
+
+      // Insert test owner
+      db.prepare(
+        'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run('owner-1', 'owner@example.com', 'hash', 'Owner User', 'owner', now);
+      ownerSessionId = createSession('owner-1').id;
     });
 
     const createMockRequest = (sessionId: string, body?: any) => {
@@ -128,6 +135,27 @@ describe('Global Settings & Section Controls', () => {
 
     it('denies PATCH /api/admin/settings for regular members', async () => {
       const req = createMockRequest(memberSessionId, { enabled_sections: ['/land'] });
+      const res = await updateSettingsApi(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('lets an owner set currency and lifetime global target', async () => {
+      const req = createMockRequest(ownerSessionId, { currency: 'XOF', global_target: 3600000 });
+      const res = await updateSettingsApi(req);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.currency).toBe('XOF');
+      expect(body.global_target).toBe(3600000);
+    });
+
+    it('forbids committee admins from changing currency (owner-only governance)', async () => {
+      const req = createMockRequest(adminSessionId, { currency: 'EUR' });
+      const res = await updateSettingsApi(req);
+      expect(res.status).toBe(403);
+    });
+
+    it('forbids committee admins from changing the lifetime global target', async () => {
+      const req = createMockRequest(adminSessionId, { global_target: 999 });
       const res = await updateSettingsApi(req);
       expect(res.status).toBe(403);
     });

@@ -65,6 +65,7 @@ export async function loginMember(email: string, password: string): Promise<Auth
 
 export function getMemberById(memberId: string): Member | null {
   const stmt = db.prepare('SELECT * FROM members WHERE id = ?');
-  const member = stmt.get(memberId) as Member | undefined;
-  return member || null;
+  const member = stmt.get(memberId) as any;
+  if (!member) return null;
+  return { ...member, must_change_password: !!member.must_change_password } as Member;
 }

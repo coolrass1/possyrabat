@@ -336,6 +336,17 @@ export interface TranslationSchema {
     members: string;
     saveSuccess: string;
   };
+  changePassword: {
+    title: string;
+    subtitle: string;
+    newPassword: string;
+    confirm: string;
+    submit: string;
+    saving: string;
+    tooShort: string;
+    mismatch: string;
+    failed: string;
+  };
 }
 
 export function getTranslationValue(obj: any, path: string): string {

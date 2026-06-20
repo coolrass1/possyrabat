@@ -337,5 +337,16 @@ export const en: TranslationSchema = {
     sections: 'Section Controls',
     members: 'Members List',
     saveSuccess: 'Obligations saved successfully'
+  },
+  changePassword: {
+    title: 'Change your password',
+    subtitle: 'For security, please set a new password before continuing.',
+    newPassword: 'New password',
+    confirm: 'Confirm password',
+    submit: 'Update password',
+    saving: 'Saving...',
+    tooShort: 'Password must be at least 8 characters.',
+    mismatch: 'The passwords do not match.',
+    failed: 'Could not change the password. Please try again.'
   }
 };

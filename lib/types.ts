@@ -8,6 +8,7 @@ export interface Member {
   parcel_count: number;
   role: 'member' | 'committee' | 'owner';
   status: 'active' | 'inactive';
+  must_change_password: boolean;
   created_at: number;
 }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
-import { setPerParcelFee, setEnabledSections, getSettings } from '@/lib/settings';
+import { setPerParcelFee, setEnabledSections, setCurrency, setGlobalTarget, getSettings } from '@/lib/settings';
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -21,7 +21,24 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { per_parcel_fee, enabled_sections } = body;
+    const { per_parcel_fee, enabled_sections, currency, global_target } = body;
+
+    // Currency and the lifetime global target are owner-only governance settings.
+    if ((currency !== undefined || global_target !== undefined) && member.role !== 'owner') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (currency !== undefined) {
+      if (typeof currency !== 'string' || currency.trim() === '') {
+        return NextResponse.json({ error: 'Currency must be a non-empty string' }, { status: 400 });
+      }
+    }
+
+    if (global_target !== undefined) {
+      if (typeof global_target !== 'number' || global_target < 0) {
+        return NextResponse.json({ error: 'Global target must be 0 or greater' }, { status: 400 });
+      }
+    }
 
     if (per_parcel_fee !== undefined) {
       if (typeof per_parcel_fee !== 'number' || per_parcel_fee < 0) {
@@ -46,6 +63,12 @@ export async function PATCH(request: NextRequest) {
     }
     if (enabled_sections !== undefined) {
       updated = setEnabledSections(enabled_sections, member.id);
+    }
+    if (currency !== undefined) {
+      updated = setCurrency(currency, member.id);
+    }
+    if (global_target !== undefined) {
+      updated = setGlobalTarget(global_target, member.id);
     }
 
     if (!updated) {

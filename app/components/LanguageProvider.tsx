@@ -16,18 +16,19 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>('fr');
 
   useEffect(() => {
     const saved = localStorage.getItem('possyrabat_lang') as Language | null;
     if (saved === 'en' || saved === 'fr') {
       setLanguageState(saved);
     } else {
+      // French is the default; only fall back to English for explicitly-English browsers.
       const browserLang = navigator.language || '';
-      if (browserLang.toLowerCase().startsWith('fr')) {
-        setLanguageState('fr');
-      } else {
+      if (browserLang.toLowerCase().startsWith('en')) {
         setLanguageState('en');
+      } else {
+        setLanguageState('fr');
       }
     }
   }, []);

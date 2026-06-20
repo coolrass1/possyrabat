@@ -16,6 +16,7 @@ function rowToMember(row: any): Member {
     parcel_count: row.parcel_count,
     role: row.role,
     status: row.status || 'active',
+    must_change_password: !!row.must_change_password,
     created_at: row.created_at,
   };
 }

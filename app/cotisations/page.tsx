@@ -133,7 +133,9 @@ export default function CotisationsPage() {
   const [months, setMonths] = useState<TargetMonth[]>([]);
   const [activeTab, setActiveTab] = useState<'payments' | 'obligations' | 'history' | 'sections'>('payments');
   const [enabledSections, setEnabledSections] = useState<string[]>([]);
-  
+  const [currency, setCurrency] = useState<string>('XOF');
+  const [globalTargetInput, setGlobalTargetInput] = useState<string>('0');
+
   // Payment logger form state
   const [paymentForm, setPaymentForm] = useState({
     member_id: '',
@@ -201,6 +203,10 @@ export default function CotisationsPage() {
             const settingsData = await settingsRes.json();
             if (settingsData.enabled_sections) {
               setEnabledSections(settingsData.enabled_sections);
+            }
+            if (settingsData.currency) setCurrency(settingsData.currency);
+            if (settingsData.global_target !== undefined) {
+              setGlobalTargetInput(String(settingsData.global_target));
             }
           }
         }
@@ -367,6 +373,33 @@ export default function CotisationsPage() {
     }
   };
 
+  const handleSaveGovernance = async () => {
+    setFormError(null);
+    setFormSuccess(null);
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currency,
+          global_target: Number(globalTargetInput) || 0,
+        }),
+      });
+
+      if (res.ok) {
+        setFormSuccess('Currency and lifetime target updated successfully');
+      } else {
+        const errData = await res.json();
+        setFormError(errData.error || 'Failed to update governance settings');
+      }
+    } catch (err) {
+      setFormError('Failed to update governance settings');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#16291F] flex items-center justify-center">
@@ -379,6 +412,7 @@ export default function CotisationsPage() {
   }
 
   const isCommittee = member && member.role !== 'member';
+  const isOwner = member && member.role === 'owner';
 
   return (
     <div className="min-h-screen bg-[#16291F] pb-16">
@@ -866,6 +900,46 @@ export default function CotisationsPage() {
               {/* Tab 4: Section Controls */}
               {activeTab === 'sections' && (
                 <div className="space-y-6 text-[#16291F]">
+                  {isOwner && (
+                    <div className="bg-[#f9f5f0] p-5 rounded-lg border border-[#C79A45]/50 space-y-4">
+                      <div className="space-y-1">
+                        <h3 className="font-serif text-lg font-bold text-[#16291F]">Currency & Lifetime Target</h3>
+                        <p className="text-xs text-[#7C9A5E] leading-relaxed">
+                          Owner-only. Sets the currency used across the portal and the lifetime global target the
+                          cumulative cooperative progress is measured against.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label htmlFor="gov-currency" className="text-xs font-bold text-[#16291F]">Currency</label>
+                          <select
+                            id="gov-currency"
+                            value={currency}
+                            onChange={(e) => setCurrency(e.target.value)}
+                            className="w-full rounded-lg border border-[#e8dcc8]/60 bg-white px-3 py-2 text-sm text-[#16291F]"
+                          >
+                            <option value="XOF">CFA franc (XOF)</option>
+                            <option value="EUR">Euro (EUR)</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="gov-target" className="text-xs font-bold text-[#16291F]">Lifetime global target</label>
+                          <input
+                            id="gov-target"
+                            type="number"
+                            min="0"
+                            value={globalTargetInput}
+                            onChange={(e) => setGlobalTargetInput(e.target.value)}
+                            className="w-full rounded-lg border border-[#e8dcc8]/60 bg-white px-3 py-2 text-sm text-[#16291F]"
+                          />
+                        </div>
+                      </div>
+                      <Button onClick={handleSaveGovernance} variant="moss" disabled={submitting} className="w-full sm:w-auto">
+                        {submitting ? 'Saving...' : 'Save Currency & Target'}
+                      </Button>
+                    </div>
+                  )}
+
                   <div className="bg-[#f9f5f0] p-5 rounded-lg border border-[#e8dcc8]/60 space-y-2">
                     <h3 className="font-serif text-lg font-bold text-[#16291F]">Member Section Visibility Controls</h3>
                     <p className="text-xs text-[#7C9A5E] leading-relaxed">

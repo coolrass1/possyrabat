@@ -35,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="fr"
       className={`${fraunces.variable} ${inter.variable} ${splineMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#16291F] text-[#F3ECDD]">

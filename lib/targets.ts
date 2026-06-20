@@ -91,8 +91,8 @@ export function getMemberStanding(memberId: string): MemberQuarterStanding[] {
     const ob = db.prepare('SELECT amount_due FROM member_quarter_obligations WHERE member_id = ? AND quarter_id = ?').get(memberId, q.id) as { amount_due: number } | undefined;
     const obligation = ob ? ob.amount_due : 0;
 
-    // Get payments recorded for this member in this quarter
-    const paymentsRaw = db.prepare('SELECT * FROM contributions WHERE member_id = ? AND quarter_id = ? ORDER BY date DESC').all(memberId, q.id) as any[];
+    // Get payments recorded for this member in this quarter (exclude soft-deleted)
+    const paymentsRaw = db.prepare('SELECT * FROM contributions WHERE member_id = ? AND quarter_id = ? AND deleted_at IS NULL ORDER BY date DESC').all(memberId, q.id) as any[];
     
     const payments = paymentsRaw.map((p) => {
       let month_name: string | null = null;

@@ -358,4 +358,212 @@ describe('Targets API Routes', () => {
     expect(standing?.paid).toBe(30000);
     expect(standing?.balance).toBe(-20000); // 30000 - 50000 = -20000 (overpaid)
   });
+
+  it('admin can edit a recorded payment and standing updates', async () => {
+    const passwordHash = await hashPassword('password123');
+    const committeeId = 'committee-edit-test';
+    const memberId = 'member-edit-test';
+    const now = Date.now();
+
+    // Create committee and member
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(committeeId, 'committee@example.com', passwordHash, 'Committee', 'committee', now);
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(memberId, 'member@example.com', passwordHash, 'Member', 'member', 'active', now);
+
+    // Create quarter and set obligation
+    const { createQuarter } = await import('@/lib/targets');
+    const testQuarter = createQuarter(`Payment Edit Test ${now}`, 1696118400000, 1704067199999, 100000);
+    setObligation(memberId, testQuarter.id, 50000);
+
+    const committeeSession = createSession(committeeId);
+
+    // Record initial payment
+    const { POST: postContributionRoute } = await import('@/app/api/contributions/route');
+    let req = {
+      cookies: {
+        get: (name: string) => (name === 'session_id' ? { value: committeeSession.id } : undefined),
+      },
+      json: async () => ({
+        member_id: memberId,
+        amount: 20000,
+        date: 1696118400000,
+        method: 'cash',
+        notes: 'Initial payment',
+      }),
+    } as any;
+
+    let res = await postContributionRoute(req);
+    expect(res.status).toBe(201);
+    const paymentId = (await res.json()).id;
+
+    // Verify initial standing
+    let standing = getMemberStanding(memberId).find((s) => s.quarter.id === testQuarter.id);
+    expect(standing?.paid).toBe(20000);
+    expect(standing?.balance).toBe(-30000); // 20000 - 50000
+
+    // Act: Edit the payment to 35000
+    const patchRoute = await import('@/app/api/contributions/[id]/route');
+    req = {
+      cookies: {
+        get: (name: string) => (name === 'session_id' ? { value: committeeSession.id } : undefined),
+      },
+      json: async () => ({
+        amount: 35000,
+        notes: 'Updated payment',
+      }),
+    } as any;
+
+    const patchRes = await (patchRoute.PATCH as any)(req, { id: paymentId });
+    expect(patchRes.status).toBe(200);
+    const updated = await patchRes.json();
+    expect(updated.amount).toBe(35000);
+    expect(updated.notes).toBe('Updated payment');
+
+    // Verify standing updated
+    standing = getMemberStanding(memberId).find((s) => s.quarter.id === testQuarter.id);
+    expect(standing?.paid).toBe(35000);
+    expect(standing?.balance).toBe(-15000); // 35000 - 50000
+  });
+
+  it('admin can soft-delete a payment and standing updates', async () => {
+    const passwordHash = await hashPassword('password123');
+    const committeeId = 'committee-delete-test';
+    const memberId = 'member-delete-test';
+    const now = Date.now();
+
+    // Create committee and member
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(committeeId, 'committee@example.com', passwordHash, 'Committee', 'committee', now);
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(memberId, 'member@example.com', passwordHash, 'Member', 'member', 'active', now);
+
+    // Create quarter and set obligation
+    const { createQuarter } = await import('@/lib/targets');
+    const testQuarter = createQuarter(`Payment Delete Test ${now}`, 1696118400000, 1704067199999, 100000);
+    setObligation(memberId, testQuarter.id, 50000);
+
+    const committeeSession = createSession(committeeId);
+
+    // Record payment
+    const { POST: postContributionRoute } = await import('@/app/api/contributions/route');
+    let req = {
+      cookies: {
+        get: (name: string) => (name === 'session_id' ? { value: committeeSession.id } : undefined),
+      },
+      json: async () => ({
+        member_id: memberId,
+        amount: 40000,
+        date: 1696118400000,
+        method: 'cash',
+        notes: 'Test payment to delete',
+      }),
+    } as any;
+
+    let res = await postContributionRoute(req);
+    const paymentId = (await res.json()).id;
+
+    // Verify initial standing
+    let standing = getMemberStanding(memberId).find((s) => s.quarter.id === testQuarter.id);
+    expect(standing?.paid).toBe(40000);
+
+    // Act: Delete the payment
+    const deleteRoute = await import('@/app/api/contributions/[id]/route');
+    req = {
+      cookies: {
+        get: (name: string) => (name === 'session_id' ? { value: committeeSession.id } : undefined),
+      },
+    } as any;
+
+    const deleteRes = await (deleteRoute.DELETE as any)(req, { id: paymentId });
+    expect(deleteRes.status).toBe(200);
+    const deleteResult = await deleteRes.json();
+    expect(deleteResult.success).toBe(true);
+
+    // Verify payment is soft-deleted in DB
+    const deletedPayment = db
+      .prepare('SELECT * FROM contributions WHERE id = ?')
+      .get(paymentId) as any;
+    expect(deletedPayment.deleted_at).not.toBeNull();
+
+    // Verify standing updated (deleted payment should not count)
+    standing = getMemberStanding(memberId).find((s) => s.quarter.id === testQuarter.id);
+    expect(standing?.paid).toBe(0);
+    expect(standing?.balance).toBe(-50000); // 0 - 50000
+  });
+
+  it('admin can define monthly targets for a quarter and they must sum to quarterly target', async () => {
+    const passwordHash = await hashPassword('password123');
+    const adminId = 'admin-monthly-test';
+    const now = Date.now();
+
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(adminId, 'admin@example.com', passwordHash, 'Admin', 'committee', now);
+
+    const adminSession = createSession(adminId);
+    const { createQuarter } = await import('@/lib/targets');
+    const testQuarter = createQuarter(`Monthly Test Quarter ${now}`, 1696118400000, 1704067199999, 300000);
+
+    // Act: Create monthly targets that sum to quarterly target
+    const monthsRoute = await import('@/app/api/admin/targets/quarters/[id]/months/route');
+    let req = {
+      cookies: {
+        get: (name: string) => (name === 'session_id' ? { value: adminSession.id } : undefined),
+      },
+      json: async () => ({
+        months: [
+          { name: 'July', target_amount: 150000 },
+          { name: 'August', target_amount: 75000 },
+          { name: 'September', target_amount: 75000 },
+        ],
+      }),
+    } as any;
+
+    const res = await (monthsRoute.POST as any)(req, { id: testQuarter.id });
+    expect(res.status).toBe(200);
+    const result = await res.json();
+    expect(result.months).toHaveLength(3);
+    expect(result.total).toBe(300000); // Sum of all months
+    expect(result.quarterTarget).toBe(300000);
+    expect(result.isValid).toBe(true); // Sum matches quarterly target
+  });
+
+  it('monthly targets validation rejects mismatched sums', async () => {
+    const passwordHash = await hashPassword('password123');
+    const adminId = 'admin-validation-test';
+    const now = Date.now();
+
+    db.prepare(
+      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(adminId, 'admin@example.com', passwordHash, 'Admin', 'committee', now);
+
+    const adminSession = createSession(adminId);
+    const { createQuarter } = await import('@/lib/targets');
+    const testQuarter = createQuarter(`Validation Test Quarter ${now}`, 1696118400000, 1704067199999, 300000);
+
+    // Act: Try to create monthly targets that DON'T sum to quarterly target
+    const monthsRoute = await import('@/app/api/admin/targets/quarters/[id]/months/route');
+    let req = {
+      cookies: {
+        get: (name: string) => (name === 'session_id' ? { value: adminSession.id } : undefined),
+      },
+      json: async () => ({
+        months: [
+          { name: 'July', target_amount: 100000 },
+          { name: 'August', target_amount: 100000 },
+          // September intentionally missing - sum is 200000, not 300000
+        ],
+      }),
+    } as any;
+
+    const res = await (monthsRoute.POST as any)(req, { id: testQuarter.id });
+    expect(res.status).toBe(400);
+    const error = await res.json();
+    expect(error.error).toContain('must sum to');
+  });
 });

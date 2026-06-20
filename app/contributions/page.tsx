@@ -2,32 +2,52 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { 
+  Coins, 
+  User, 
+  Calendar, 
+  ArrowLeft, 
+  Search, 
+  CheckCircle2, 
+  AlertCircle,
+  TrendingUp,
+  Target,
+  ArrowUpDown,
+  BookOpen
+} from 'lucide-react';
 
-interface Contribution {
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/app/components/ui/table';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
+import { Progress } from '@/app/components/ui/progress';
+import { Badge } from '@/app/components/ui/badge';
+import { useLanguage } from '@/app/components/LanguageProvider';
+
+interface TargetQuarter {
   id: string;
-  amount: number;
-  date: number;
-  method?: string;
-  notes?: string;
-  recorded_by: string;
+  name: string;
+  start_date: number;
+  end_date: number;
+  target_amount: number;
+  raised: number;
 }
 
-interface History {
-  items: Contribution[];
-  total: number;
-  page: number;
-  limit: number;
-  pages: number;
-}
-
-interface Standing {
-  parcel_count: number;
-  per_parcel_fee: number;
+interface MemberStanding {
+  quarter: TargetQuarter;
   obligation: number;
   paid: number;
   balance: number;
-  status: string;
-  currency: string;
+  status: 'up_to_date' | 'behind';
+  payments: Array<{
+    id: string;
+    amount: number;
+    date_paid: number;
+    method: string;
+    notes: string | null;
+    month_name: string | null;
+  }>;
 }
 
 interface RosterEntry {
@@ -43,14 +63,27 @@ interface RosterEntry {
 
 export default function ContributionsPage() {
   const router = useRouter();
-  const [history, setHistory] = useState<History | null>(null);
-  const [standing, setStanding] = useState<Standing | null>(null);
+  const { t } = useLanguage();
+  
+  // State variables
+  const [member, setMember] = useState<any | null>(null);
+  const [overview, setOverview] = useState<{
+    globalTarget: number;
+    globalRaised: number;
+    activeQuarter: TargetQuarter | null;
+    quarters: TargetQuarter[];
+  } | null>(null);
+  const [standings, setStandings] = useState<MemberStanding[]>([]);
+  
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [rosterSearch, setRosterSearch] = useState('');
   const [sortKey, setSortKey] = useState<keyof RosterEntry>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  
   const [isLoading, setIsLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<'my-standing' | 'roster'>('my-standing');
+
+  // Payment recording form state (committee/owner only)
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
@@ -62,6 +95,53 @@ export default function ContributionsPage() {
   });
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const sessionRes = await fetch('/api/auth/session');
+        const sessionData = await sessionRes.json();
+        if (!sessionData.authenticated) {
+          router.push('/login');
+          return;
+        }
+        setMember(sessionData.member);
+
+        // Fetch targets overview
+        const overviewRes = await fetch('/api/targets/overview');
+        if (overviewRes.ok) {
+          setOverview(await overviewRes.json());
+        }
+
+        // Fetch standings
+        const standingRes = await fetch('/api/targets/my-standing');
+        if (standingRes.ok) {
+          setStandings(await standingRes.json());
+        }
+
+        // Fetch roster
+        const rosterRes = await fetch('/api/contributions/open-roster?limit=100');
+        if (rosterRes.ok) {
+          const rosterData = await rosterRes.json();
+          setRoster(rosterData.items || []);
+        }
+
+        // Set user role for payment form visibility
+        setUserRole(sessionData.member.role);
+      } catch (err) {
+        console.error('Fetch contributions error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [router]);
+
+  // Refresh roster on mount
+  useEffect(() => {
+    refreshRoster();
+  }, []);
 
   const refreshRoster = async () => {
     try {
@@ -127,327 +207,468 @@ export default function ContributionsPage() {
 
   const toggleSort = (key: keyof RosterEntry) => {
     if (key === sortKey) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
     } else {
       setSortKey(key);
       setSortDir('asc');
     }
   };
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const res = await fetch(`/api/contributions/my-history?page=${page}&limit=10`);
-        if (!res.ok) {
-          router.push('/login');
-          return;
-        }
-        setHistory(await res.json());
-      } catch (err) {
-        console.error('Error fetching history:', err);
-      } finally {
-        setIsLoading(false);
+  const sortedRoster = [...roster]
+    .filter((entry) => {
+      const search = rosterSearch.toLowerCase();
+      return (
+        entry.name.toLowerCase().includes(search) ||
+        entry.email.toLowerCase().includes(search)
+      );
+    })
+    .sort((a, b) => {
+      let aVal = a[sortKey];
+      let bVal = b[sortKey];
+
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal as string).toLowerCase();
       }
-    };
 
-    fetchHistory();
-  }, [page, router]);
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
 
-  useEffect(() => {
-    const fetchStanding = async () => {
-      try {
-        const res = await fetch('/api/contributions/my-standing');
-        if (res.ok) {
-          setStanding(await res.json());
-        }
-      } catch (err) {
-        console.error('Error fetching standing:', err);
-      }
-    };
-
-    fetchStanding();
-  }, []);
-
-  useEffect(() => {
-    refreshRoster();
-  }, []);
-
-  useEffect(() => {
-    const fetchRole = async () => {
-      try {
-        const res = await fetch('/api/auth/session');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.authenticated) {
-            setUserRole(data.member.role);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching session:', err);
-      }
-    };
-
-    fetchRole();
-  }, []);
+  const getMethodLabel = (method: string) => {
+    switch (method) {
+      case 'bank_transfer': return t('common.bankTransfer');
+      case 'cash': return t('common.cash');
+      case 'mobile_money': return t('common.mobileMoney');
+      default: return t('common.other');
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#16291F] flex items-center justify-center">
-        <p className="text-[#F3ECDD]">Loading...</p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#C79A45] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[#F3ECDD] font-serif tracking-wider animate-pulse">{t('common.loading')}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#16291F]">
-
-      <main className="max-w-6xl mx-auto p-8">
-        {standing && (
-          <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mb-8">
-            <h2 className="text-3xl font-bold text-[#16291F] mb-2 font-serif">My Standing</h2>
-            <p className="text-[#7C9A5E] mb-6">
-              For your {standing.parcel_count} parcels you owe €{standing.obligation.toFixed(2)};
-              {' '}paid €{standing.paid.toFixed(2)}.
-            </p>
-            <div className="grid grid-cols-3 gap-6">
-              <div>
-                <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Obligation</p>
-                <p className="text-2xl font-bold text-[#16291F]">€{standing.obligation.toFixed(2)}</p>
-                <p className="text-xs text-[#7C9A5E] mt-1">
-                  {standing.parcel_count} × €{standing.per_parcel_fee}/parcel
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Paid</p>
-                <p className="text-2xl font-bold text-[#C79A45]">€{standing.paid.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[#7C9A5E] mb-1">Status</p>
-                <span
-                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium text-white ${
-                    standing.balance >= 0 ? 'bg-[#7C9A5E]' : 'bg-[#B5532E]'
-                  }`}
-                >
-                  {standing.status}
-                </span>
-              </div>
-            </div>
+    <div className="min-h-screen bg-[#16291F] pb-16">
+      <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+        
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={() => router.push('/')} className="bg-[#0d1a13] text-[#F3ECDD] border-[#e8dcc8]/20 hover:bg-[#16291F]">
+            <ArrowLeft className="h-4 w-4 mr-2" /> {t('common.backToHome')}
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold font-serif text-[#F3ECDD]">{t('contributions.title')}</h1>
+            <p className="text-[#7C9A5E] text-sm mt-0.5">{t('contributions.subtitle')}</p>
           </div>
-        )}
-
-        <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8">
-          <h2 className="text-3xl font-bold text-[#16291F] mb-6 font-serif">Contribution History</h2>
-
-          {history && history.items.length > 0 ? (
-            <>
-              <div className="overflow-x-auto mb-6">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-[#C79A45]">
-                      <th className="text-left py-3 text-[#16291F] font-semibold">Date</th>
-                      <th className="text-right py-3 text-[#16291F] font-semibold">Amount</th>
-                      <th className="text-left py-3 text-[#16291F] font-semibold">Method</th>
-                      <th className="text-left py-3 text-[#16291F] font-semibold">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.items.map((contrib) => (
-                      <tr key={contrib.id} className="border-b border-[#E8DCC8] hover:bg-[#F9F5F0]">
-                        <td className="py-3 text-[#16291F]">
-                          {new Date(contrib.date).toLocaleDateString()}
-                        </td>
-                        <td className="text-right py-3 text-[#16291F] font-semibold text-[#C79A45]">
-                          €{contrib.amount.toFixed(2)}
-                        </td>
-                        <td className="py-3 text-[#16291F] capitalize">{contrib.method || '—'}</td>
-                        <td className="py-3 text-[#7C9A5E] text-sm">{contrib.notes || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {history.pages > 1 && (
-                <div className="flex justify-center gap-2">
-                  {Array.from({ length: history.pages }).map((_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setPage(i + 1)}
-                      className={`px-4 py-2 rounded-md transition ${
-                        page === i + 1
-                          ? 'bg-[#7C9A5E] text-white'
-                          : 'bg-[#E8DCC8] text-[#16291F] hover:bg-[#D8CCC8]'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="text-[#7C9A5E]">No contributions recorded yet.</p>
-          )}
         </div>
 
-        {/* Record payment — committee/owner only */}
-        {userRole && userRole !== 'member' && (
-          <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-[#16291F] font-serif">Record a Payment</h2>
-              <button
-                onClick={() => setShowPaymentForm((s) => !s)}
-                className="px-4 py-2 rounded-md bg-[#7C9A5E] text-white hover:bg-[#6a8650] transition"
-              >
-                {showPaymentForm ? 'Cancel' : 'Record Payment'}
-              </button>
-            </div>
+        {/* Overview Widgets */}
+        {overview && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Global Target */}
+            <Card className="border border-[#e8dcc8]/30 shadow-lg relative overflow-hidden bg-[#f3ecdd]">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-[#B5532E]" />
+                  <CardTitle className="text-xl font-serif text-[#16291F]">{t('contributions.disputeTarget')}</CardTitle>
+                </div>
+                <CardDescription>{t('contributions.timelineLabel')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.raisedContributions')}</span>
+                    <p className="text-3xl font-black text-[#16291F] font-figure">
+                      €{overview.globalRaised.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.coopMilestone')}</span>
+                    <p className="text-xl font-bold text-[#C79A45] font-figure">
+                      {t('home.ofGoal').replace('{goal}', overview.globalTarget.toLocaleString())}
+                    </p>
+                  </div>
+                </div>
 
-            {showPaymentForm && (
-              <form onSubmit={handleRecordPayment} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {paymentError && (
-                  <p className="md:col-span-2 text-[#B5532E] text-sm">{paymentError}</p>
-                )}
-                <select
-                  required
-                  value={paymentForm.member_id}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, member_id: e.target.value })}
-                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
-                >
-                  <option value="">Select member…</option>
-                  {roster.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.email})
-                    </option>
-                  ))}
-                </select>
-                <input
-                  required
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  placeholder="Amount"
-                  value={paymentForm.amount}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
-                />
-                <input
-                  required
-                  type="date"
-                  max={new Date().toISOString().slice(0, 10)}
-                  value={paymentForm.date}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
-                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
-                />
-                <select
-                  value={paymentForm.method}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
-                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank transfer</option>
-                  <option value="mobile_money">Mobile money</option>
-                  <option value="other">Other</option>
-                </select>
-                <input
-                  placeholder="Notes (optional)"
-                  value={paymentForm.notes}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-                  className="px-4 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45] md:col-span-2"
-                />
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 rounded-md bg-[#C79A45] text-white hover:bg-[#b58a3a] transition disabled:opacity-50 md:col-span-2"
-                >
-                  {submitting ? 'Recording…' : 'Record Payment'}
-                </button>
-              </form>
+                <Progress value={(overview.globalRaised / overview.globalTarget) * 100} />
+                <p className="text-right text-[10px] font-mono font-bold text-[#C79A45]">
+                  {((overview.globalRaised / overview.globalTarget) * 100).toFixed(1)}% {t('common.completed')}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Active Quarter Target */}
+            {overview.activeQuarter && (
+              <Card className="border border-[#e8dcc8]/30 shadow-lg relative overflow-hidden bg-[#f3ecdd]">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-[#7C9A5E]" />
+                      <CardTitle className="text-xl font-serif text-[#16291F]">{t('contributions.activeQuarterTarget')}</CardTitle>
+                    </div>
+                    <Badge variant="moss" className="font-mono">
+                      {overview.activeQuarter.name}
+                    </Badge>
+                  </div>
+                  <CardDescription>
+                    {t('contributions.timelinePeriod')}: {new Date(overview.activeQuarter.start_date).toLocaleDateString()} – {new Date(overview.activeQuarter.end_date).toLocaleDateString()}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.quarterRaised')}</span>
+                      <p className="text-3xl font-black text-[#16291F] font-figure">
+                        €{overview.activeQuarter.raised.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.quarterGoal')}</span>
+                      <p className="text-xl font-bold text-[#7C9A5E] font-figure">
+                        {t('home.ofGoal').replace('{goal}', overview.activeQuarter.target_amount.toLocaleString())}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Progress value={(overview.activeQuarter.raised / overview.activeQuarter.target_amount) * 100} />
+                  <p className="text-right text-[10px] font-mono font-bold text-[#7C9A5E]">
+                    {((overview.activeQuarter.raised / overview.activeQuarter.target_amount) * 100).toFixed(1)}% {t('common.completed')}
+                  </p>
+                </CardContent>
+              </Card>
             )}
           </div>
         )}
 
-        {/* Open roster — transparent accountability view */}
-        {roster.length > 0 && (
-          <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-[#16291F] font-serif">Open Roster</h2>
-              <input
-                type="search"
-                value={rosterSearch}
-                onChange={(e) => setRosterSearch(e.target.value)}
-                placeholder="Search member…"
-                className="px-4 py-2 border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
-              />
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-[#C79A45]">
-                    {([
-                      ['name', 'Member', 'left'],
-                      ['parcel_count', 'Parcels', 'right'],
-                      ['obligation', 'Obligation', 'right'],
-                      ['paid', 'Paid', 'right'],
-                      ['status', 'Status', 'left'],
-                    ] as [keyof RosterEntry, string, 'left' | 'right'][]).map(([key, label, align]) => (
-                      <th
-                        key={key}
-                        onClick={() => toggleSort(key)}
-                        className={`py-3 text-[#16291F] font-semibold cursor-pointer select-none hover:text-[#C79A45] text-${align}${
-                          key === 'status' ? ' pl-6' : ''
-                        }`}
-                      >
-                        {label}
-                        {sortKey === key && (
-                          <span className="ml-1 text-[#C79A45]">{sortDir === 'asc' ? '▲' : '▼'}</span>
-                        )}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {roster
-                    .filter((m) =>
-                      (m.name || '').toLowerCase().includes(rosterSearch.toLowerCase())
-                    )
-                    .slice()
-                    .sort((a, b) => {
-                      const av = a[sortKey];
-                      const bv = b[sortKey];
-                      let cmp: number;
-                      if (typeof av === 'number' && typeof bv === 'number') {
-                        cmp = av - bv;
-                      } else {
-                        cmp = String(av).localeCompare(String(bv));
-                      }
-                      return sortDir === 'asc' ? cmp : -cmp;
-                    })
-                    .map((m) => (
-                      <tr key={m.id} className="border-b border-[#E8DCC8] hover:bg-[#F9F5F0]">
-                        <td className="py-3 text-[#16291F]">
-                          <div>{m.name}</div>
-                          <div className="text-xs text-[#7C9A5E]">{m.email}</div>
-                        </td>
-                        <td className="text-right py-3 text-[#16291F]">{m.parcel_count}</td>
-                        <td className="text-right py-3 font-mono text-[#16291F]">€{m.obligation.toFixed(2)}</td>
-                        <td className="text-right py-3 font-mono text-[#C79A45]">€{m.paid.toFixed(2)}</td>
-                        <td className="py-3 pl-6">
-                          <span
-                            className={`inline-block px-3 py-1 rounded-full text-sm font-medium text-white ${
-                              m.balance >= 0 ? 'bg-[#7C9A5E]' : 'bg-[#B5532E]'
-                            }`}
-                          >
-                            {m.status}
+        {/* Tab Controls */}
+        <div className="flex border-b border-[#e8dcc8]/10 gap-4 pb-1">
+          <button
+            onClick={() => setActiveTab('my-standing')}
+            className={`pb-3 text-sm font-bold border-b-2 transition-all ${
+              activeTab === 'my-standing'
+                ? 'border-[#C79A45] text-[#F3ECDD]'
+                : 'border-transparent text-[#F3ECDD]/60 hover:text-[#F3ECDD]'
+            }`}
+          >
+            {t('contributions.myObligationsTab')}
+          </button>
+          <button
+            onClick={() => setActiveTab('roster')}
+            className={`pb-3 text-sm font-bold border-b-2 transition-all ${
+              activeTab === 'roster'
+                ? 'border-[#C79A45] text-[#F3ECDD]'
+                : 'border-transparent text-[#F3ECDD]/60 hover:text-[#F3ECDD]'
+            }`}
+          >
+            {t('contributions.rosterTab')}
+          </button>
+        </div>
+
+        {/* Tab Content: Standing & Obligations */}
+        {activeTab === 'my-standing' && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-[#7C9A5E]" />
+                <CardTitle className="font-serif text-2xl text-[#16291F]">{t('contributions.individualStandings')}</CardTitle>
+              </div>
+              <CardDescription>{t('contributions.individualStandingsDesc')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {standings.length > 0 ? (
+                <div className="space-y-6">
+                  {standings.map((s) => (
+                    <div key={s.quarter.id} className="border border-[#e8dcc8]/60 rounded-xl p-6 bg-[#f9f5f0] space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#e8dcc8]/30 pb-3">
+                        <div>
+                          <h4 className="text-lg font-bold text-[#16291F] font-serif">{s.quarter.name} {t('contributions.duesSuffix')}</h4>
+                          <span className="text-[10px] font-mono text-[#7C9A5E]">
+                            {t('contributions.timelinePeriod')}: {new Date(s.quarter.start_date).toLocaleDateString()} – {new Date(s.quarter.end_date).toLocaleDateString()}
                           </span>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={s.status === 'up_to_date' ? 'moss' : 'clay'} className="font-bold">
+                            {s.status === 'up_to_date' ? t('contributions.statusUpToDate') : t('contributions.statusBehind')}
+                          </Badge>
+                          <span className={`text-sm font-bold font-mono ${s.balance >= 0 ? 'text-[#7C9A5E]' : 'text-[#B5532E]'}`}>
+                            {s.balance >= 0 ? `+€${s.balance.toLocaleString()}` : `-€${Math.abs(s.balance).toLocaleString()}`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-center sm:text-left">
+                        <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
+                          <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.obligationAmount')}</span>
+                          <span className="text-base font-black text-[#16291F] font-figure">€{s.obligation.toLocaleString()}</span>
+                        </div>
+                        <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
+                          <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.paidStandings')}</span>
+                          <span className="text-base font-black text-[#C79A45] font-figure">€{s.paid.toLocaleString()}</span>
+                        </div>
+                        <div className="bg-[#e8dcc8]/30 p-3 rounded-lg flex flex-col justify-center">
+                          <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.discrepancy')}</span>
+                          <span className={`text-base font-bold font-mono ${s.balance >= 0 ? 'text-[#7C9A5E]' : 'text-[#B5532E]'}`}>
+                            €{s.balance.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Earmarked payments list */}
+                      <div className="space-y-2 pt-2">
+                        <span className="text-[10px] uppercase font-bold text-[#7C9A5E] tracking-wider block">{t('contributions.paymentsLoggedFor').replace('{quarter}', s.quarter.name)}</span>
+                        {s.payments.length > 0 ? (
+                          <div className="overflow-x-auto border border-[#e8dcc8]/45 rounded-lg bg-white">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="py-2.5 text-xs">{t('contributions.when')}</TableHead>
+                                  <TableHead className="py-2.5 text-xs text-right">{t('contributions.amount')}</TableHead>
+                                  <TableHead className="py-2.5 text-xs">{t('contributions.method')}</TableHead>
+                                  <TableHead className="py-2.5 text-xs">{t('contributions.earmarkMonth')}</TableHead>
+                                  <TableHead className="py-2.5 text-xs">{t('contributions.notes')}</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {s.payments.map((p) => (
+                                  <TableRow key={p.id} className="hover:bg-[#e8dcc8]/10 text-xs">
+                                    <TableCell className="py-2 font-mono text-[11px] text-[#16291F]">
+                                      {new Date(p.date_paid).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono font-bold text-[#C79A45] py-2">
+                                      €{p.amount.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="capitalize py-2 text-[#16291F]">
+                                      {getMethodLabel(p.method)}
+                                    </TableCell>
+                                    <TableCell className="py-2 font-semibold text-[#7C9A5E]">
+                                      {p.month_name || t('contributions.unspecified')}
+                                    </TableCell>
+                                    <TableCell className="text-[#7C9A5E] py-2 italic text-[11px] max-w-[150px] truncate">
+                                      {p.notes || '—'}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-[#7C9A5E] italic">{t('contributions.noTransactions')}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center py-6 text-[#7C9A5E] text-sm italic">{t('contributions.noStandings')}</p>
+              )}
+            </CardContent>
+          </Card>
         )}
+
+        {/* Tab Content: Transparency Roster */}
+        {activeTab === 'roster' && (
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-[#7C9A5E]" />
+                    <CardTitle className="font-serif text-2xl text-[#16291F]">{t('contributions.transparencyRoster')}</CardTitle>
+                  </div>
+                  <CardDescription>{t('contributions.transparencyRosterDesc')}</CardDescription>
+                </div>
+                <div className="relative w-full md:w-72">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#7C9A5E]" />
+                  <Input
+                    placeholder={t('contributions.searchPlaceholder')}
+                    value={rosterSearch}
+                    onChange={(e) => setRosterSearch(e.target.value)}
+                    className="pl-9 bg-[#f3ecdd] border-[#e8dcc8]/40 text-[#16291F] focus:ring-[#7C9A5E] h-9 text-xs"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {sortedRoster.length > 0 ? (
+                <div className="overflow-x-auto border border-[#e8dcc8]/45 rounded-lg bg-white text-[#16291F]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead onClick={() => toggleSort('name')} className="cursor-pointer select-none">
+                          <div className="flex items-center gap-1">{t('contributions.memberHeader')} <ArrowUpDown className="h-3.5 w-3.5 text-[#7C9A5E]" /></div>
+                        </TableHead>
+                        <TableHead onClick={() => toggleSort('parcel_count')} className="cursor-pointer select-none text-right">
+                          <div className="flex items-center gap-1 justify-end">{t('contributions.parcelsHeader')} <ArrowUpDown className="h-3.5 w-3.5 text-[#7C9A5E]" /></div>
+                        </TableHead>
+                        <TableHead onClick={() => toggleSort('obligation')} className="cursor-pointer select-none text-right">
+                          <div className="flex items-center gap-1 justify-end">{t('contributions.targetObligationHeader')} <ArrowUpDown className="h-3.5 w-3.5 text-[#7C9A5E]" /></div>
+                        </TableHead>
+                        <TableHead onClick={() => toggleSort('paid')} className="cursor-pointer select-none text-right">
+                          <div className="flex items-center gap-1 justify-end">{t('contributions.paidHeader')} <ArrowUpDown className="h-3.5 w-3.5 text-[#7C9A5E]" /></div>
+                        </TableHead>
+                        <TableHead onClick={() => toggleSort('balance')} className="cursor-pointer select-none text-right">
+                          <div className="flex items-center gap-1 justify-end">{t('contributions.discrepancyHeader')} <ArrowUpDown className="h-3.5 w-3.5 text-[#7C9A5E]" /></div>
+                        </TableHead>
+                        <TableHead>{t('contributions.statusHeader')}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedRoster.map((entry) => (
+                        <TableRow key={entry.id} className="hover:bg-[#e8dcc8]/10 text-xs">
+                          <TableCell className="py-3 font-semibold text-[#16291F]">
+                            <div>{entry.name}</div>
+                            <div className="text-[10px] text-[#7C9A5E] font-mono font-medium">{entry.email}</div>
+                          </TableCell>
+                          <TableCell className="text-right py-3 font-mono font-semibold">{entry.parcel_count} {t('contributions.parcelsSuffix')}</TableCell>
+                          <TableCell className="text-right py-3 font-mono">€{entry.obligation.toLocaleString()}</TableCell>
+                          <TableCell className="text-right py-3 font-mono font-bold text-[#C79A45]">€{entry.paid.toLocaleString()}</TableCell>
+                          <TableCell className={`text-right py-3 font-mono font-semibold ${entry.balance >= 0 ? 'text-[#7C9A5E]' : 'text-[#B5532E]'}`}>
+                            {entry.balance >= 0 ? `+€${entry.balance.toLocaleString()}` : `-€${Math.abs(entry.balance).toLocaleString()}`}
+                          </TableCell>
+                          <TableCell className="py-3">
+                            <Badge variant={entry.status === 'up to date' ? 'moss' : 'clay'} className="font-bold text-[10px]">
+                              {entry.status === 'up to date' ? t('contributions.statusUpToDate') : t('contributions.statusBehind')}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="text-center py-8 text-[#7C9A5E] text-xs italic bg-white border border-[#e8dcc8]/40 rounded-lg">
+                  {t('contributions.noMembersMatch')}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Record payment — committee/owner only */}
+        {userRole && userRole !== 'member' && (
+          <Card className="border border-[#e8dcc8]/30">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-[#7C9A5E]" />
+                  <CardTitle className="font-serif">{t('contributions.recordPayment')}</CardTitle>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPaymentForm(!showPaymentForm)}
+                  className="bg-[#7C9A5E] text-white hover:bg-[#6a8650]"
+                >
+                  {showPaymentForm ? t('common.cancel') : t('contributions.addPayment')}
+                </Button>
+              </div>
+              <CardDescription>{t('contributions.recordPaymentDesc')}</CardDescription>
+            </CardHeader>
+
+            {showPaymentForm && (
+              <CardContent>
+                <form onSubmit={handleRecordPayment} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {paymentError && (
+                    <div className="md:col-span-2 bg-[#B5532E]/10 border-l-4 border-[#B5532E] p-3 rounded text-sm text-[#B5532E]">
+                      {paymentError}
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="payment-member">{t('contributions.memberLabel')}</Label>
+                    <select
+                      id="payment-member"
+                      required
+                      value={paymentForm.member_id}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, member_id: e.target.value })}
+                      className="w-full px-3 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                    >
+                      <option value="">{t('contributions.selectMember')}</option>
+                      {roster.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="payment-amount">{t('contributions.amountLabel')}</Label>
+                    <Input
+                      id="payment-amount"
+                      required
+                      type="number"
+                      min={0.01}
+                      step="0.01"
+                      placeholder="0.00"
+                      value={paymentForm.amount}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                      className="bg-[#16291F] text-[#F3ECDD]"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="payment-date">{t('contributions.dateLabel')}</Label>
+                    <Input
+                      id="payment-date"
+                      required
+                      type="date"
+                      max={new Date().toISOString().slice(0, 10)}
+                      value={paymentForm.date}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
+                      className="bg-[#16291F] text-[#F3ECDD]"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="payment-method">{t('contributions.methodLabel')}</Label>
+                    <select
+                      id="payment-method"
+                      value={paymentForm.method}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                      className="w-full px-3 py-2 bg-[#16291F] text-[#F3ECDD] border border-[#C79A45] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C79A45]"
+                    >
+                      <option value="cash">{t('common.cash')}</option>
+                      <option value="bank_transfer">{t('common.bankTransfer')}</option>
+                      <option value="mobile_money">{t('common.mobileMoney')}</option>
+                      <option value="other">{t('common.other')}</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="payment-notes">{t('contributions.notesLabel')}</Label>
+                    <Input
+                      id="payment-notes"
+                      placeholder={t('contributions.notesPlaceholder')}
+                      value={paymentForm.notes}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                      className="bg-[#16291F] text-[#F3ECDD]"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={submitting}
+                    variant="moss"
+                    className="md:col-span-2"
+                  >
+                    {submitting ? t('common.loading') : t('contributions.recordPaymentBtn')}
+                  </Button>
+                </form>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
       </main>
     </div>
   );

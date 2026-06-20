@@ -3,9 +3,35 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Meeting, MeetingDecision, MeetingAction, MeetingDocument } from '@/lib/types';
+import { 
+  Calendar, 
+  Users, 
+  FileText, 
+  Plus, 
+  Trash2, 
+  CheckSquare, 
+  PlusCircle, 
+  AlertCircle, 
+  Clock, 
+  MapPin,
+  ClipboardList,
+  CheckCircle,
+  FileDown,
+  MailCheck
+} from 'lucide-react';
+
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
+import { Textarea } from '@/app/components/ui/textarea';
+import { Select } from '@/app/components/ui/select';
+import { Badge } from '@/app/components/ui/badge';
+import { useLanguage } from '@/app/components/LanguageProvider';
 
 export default function MeetingsPage() {
   const router = useRouter();
+  const { language, t } = useLanguage();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -15,11 +41,13 @@ export default function MeetingsPage() {
   const [actions, setActions] = useState<MeetingAction[]>([]);
   const [newActionTask, setNewActionTask] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  
   const [meetingForm, setMeetingForm] = useState({
     title: '',
     date: new Date().toISOString().slice(0, 16), // datetime-local
     notes: '',
   });
+  
   const [documents, setDocuments] = useState<MeetingDocument[]>([]);
   const [docKind, setDocKind] = useState<'minutes' | 'report' | 'other'>('report');
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -203,7 +231,7 @@ export default function MeetingsPage() {
   };
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
+    return new Date(timestamp).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -212,314 +240,416 @@ export default function MeetingsPage() {
     });
   };
 
+  const getDocKindLabel = (kind: string) => {
+    switch (kind.toLowerCase()) {
+      case 'report': return t('meetings.reportPaperOption');
+      case 'minutes': return t('meetings.minutesPaperOption');
+      case 'other': return t('meetings.otherPaperOption');
+      default: return kind;
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#16291F]">
-        <p className="text-[#F3ECDD]">Loading...</p>
+      <div className="min-h-screen bg-[#16291F] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#C79A45] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[#F3ECDD] font-serif tracking-wider animate-pulse">{t('common.loading')}</p>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[#16291F]">
+  const DOC_BADGES: Record<string, 'brass' | 'moss' | 'secondary'> = {
+    report: 'brass',
+    minutes: 'moss',
+    other: 'secondary',
+  };
 
-      <main className="max-w-6xl mx-auto p-8">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-bold text-[#F3ECDD] font-serif">Meetings</h2>
+  return (
+    <div className="min-h-screen bg-[#16291F] pb-16">
+      <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+        
+        {/* Navigation / Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#e8dcc8]/20 pb-6">
+          <div>
+            <h1 className="text-3xl font-bold font-serif text-[#F3ECDD]">{t('meetings.title')}</h1>
+            <p className="text-[#7C9A5E] text-sm mt-0.5">{t('meetings.subtitle')}</p>
+          </div>
           {userRole !== 'member' && (
-            <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="px-4 py-2 bg-[#C79A45] text-[#16291F] rounded-md font-semibold hover:bg-[#b8894a] transition-colors"
-            >
-              {showCreateForm ? 'Cancel' : 'New Meeting'}
-            </button>
+            <Button variant="brass" onClick={() => setShowCreateForm(!showCreateForm)}>
+              {showCreateForm ? t('meetings.cancelConvocations') : t('meetings.scheduleCouncil')}
+            </Button>
           )}
         </div>
 
+        {/* Create Meeting Form */}
         {userRole !== 'member' && showCreateForm && (
-          <form onSubmit={handleCreateMeeting} className="bg-[#F3ECDD] rounded-lg shadow-lg p-6 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-[#16291F] mb-2">Title</label>
-              <input
-                required
-                value={meetingForm.title}
-                onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })}
-                placeholder="e.g. Monthly meeting"
-                className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md text-[#16291F] focus:outline-none focus:border-[#C79A45]"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-[#16291F] mb-2">Date & time</label>
-              <input
-                required
-                type="datetime-local"
-                value={meetingForm.date}
-                onChange={(e) => setMeetingForm({ ...meetingForm, date: e.target.value })}
-                className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md text-[#16291F] focus:outline-none focus:border-[#C79A45]"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-[#16291F] mb-2">Notes / agenda (optional)</label>
-              <textarea
-                value={meetingForm.notes}
-                onChange={(e) => setMeetingForm({ ...meetingForm, notes: e.target.value })}
-                rows={2}
-                className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md text-[#16291F] focus:outline-none focus:border-[#C79A45]"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <button type="submit" className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md font-semibold hover:bg-[#6a8a4f] transition-colors">
-                Create Meeting
-              </button>
-            </div>
-          </form>
+          <Card className="border border-[#C79A45]/30">
+            <CardHeader>
+              <CardTitle>{t('meetings.scheduleCouncilMeeting')}</CardTitle>
+              <CardDescription>{t('meetings.setupDetailsDesc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateMeeting} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[#16291F]">
+                <div>
+                  <Label htmlFor="meeting-title">{t('meetings.meetingTitleLabel')}</Label>
+                  <Input
+                    id="meeting-title"
+                    required
+                    value={meetingForm.title}
+                    onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })}
+                    placeholder="e.g. Weekly Counsel, AGM"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="meeting-date">{t('meetings.dateAndTimeLabel')}</Label>
+                  <Input
+                    id="meeting-date"
+                    required
+                    type="datetime-local"
+                    value={meetingForm.date}
+                    onChange={(e) => setMeetingForm({ ...meetingForm, date: e.target.value })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="meeting-notes">{t('meetings.agendaOptionalLabel')}</Label>
+                  <Textarea
+                    id="meeting-notes"
+                    value={meetingForm.notes}
+                    onChange={(e) => setMeetingForm({ ...meetingForm, notes: e.target.value })}
+                    rows={3}
+                    placeholder="e.g. Legal update overview, contribution arrears..."
+                  />
+                </div>
+                <div className="md:col-span-2 pt-2">
+                  <Button type="submit" variant="moss">
+                    {t('meetings.createMeetingButton')}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Meetings List */}
-          <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-[#16291F] mb-4">All Meetings</h3>
-
-            {meetings.length > 0 ? (
-              <div className="space-y-2">
-                {meetings.map((meeting) => (
-                  <button
-                    key={meeting.id}
-                    onClick={() => selectMeeting(meeting)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
-                      selectedMeeting?.id === meeting.id
-                        ? 'bg-[#7C9A5E] text-white'
-                        : 'bg-white text-[#16291F] hover:bg-[#F9F5F0]'
-                    }`}
-                  >
-                    <p className="font-semibold">{meeting.title}</p>
-                    <p className="text-xs opacity-75">{formatDate(meeting.date)}</p>
-                  </button>
-                ))}
+        {/* Dashboard Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Column 1: Meetings List */}
+          <Card className="lg:col-span-1">
+            <CardHeader className="pb-4 border-b border-[#e8dcc8]/20">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-[#C79A45]" />
+                <CardTitle className="font-serif text-lg">{t('meetings.convocationsListTitle')}</CardTitle>
               </div>
-            ) : (
-              <p className="text-[#7C9A5E] text-center py-8">No meetings yet</p>
-            )}
-          </div>
+            </CardHeader>
+            <CardContent className="pt-4 px-2">
+              {meetings.length > 0 ? (
+                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                  {meetings.map((meeting) => (
+                    <button
+                       key={meeting.id}
+                      onClick={() => selectMeeting(meeting)}
+                      className={`w-full text-left p-3 rounded-lg transition-all duration-300 flex items-center justify-between gap-3 border ${
+                        selectedMeeting?.id === meeting.id
+                          ? 'bg-[#7C9A5E] text-white border-transparent shadow-md transform scale-[1.02]'
+                          : 'bg-[#f9f5f0] text-[#16291F] border-[#e8dcc8]/40 hover:bg-[#e8dcc8]/35'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-sm truncate">{meeting.title}</p>
+                        <p className="text-[10px] opacity-80 mt-1 flex items-center gap-1 font-mono">
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          {formatDate(meeting.date)}
+                        </p>
+                      </div>
+                      <Badge variant={selectedMeeting?.id === meeting.id ? 'default' : 'secondary'} className="text-[10px] shrink-0 font-mono">
+                        {meeting.attendees.length} {t('meetings.membersSuffix')}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-[#7C9A5E] space-y-2">
+                  <Calendar className="h-8 w-8 mx-auto text-[#7C9A5E]/40" />
+                  <p className="text-sm">{t('meetings.noScheduledMeetings')}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Meeting Details */}
-          {selectedMeeting && (
-            <div className="md:col-span-2">
-              <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mb-6">
-                <h3 className="text-2xl font-bold text-[#16291F] mb-4 font-serif">
-                  {selectedMeeting.title}
-                </h3>
-
-                <div className="space-y-3 mb-6">
-                  <div>
-                    <p className="text-sm text-[#7C9A5E]">Date & Time</p>
-                    <p className="text-[#16291F]">{formatDate(selectedMeeting.date)}</p>
-                  </div>
-
+          {/* Column 2 & 3: Meeting Details & Councils Chores */}
+          {selectedMeeting ? (
+            <div className="lg:col-span-2 space-y-8">
+              
+              {/* Selected Meeting Info */}
+              <Card>
+                <CardHeader className="bg-[#f3ecdd] border-b border-[#e8dcc8] py-4">
+                  <CardTitle className="font-serif text-2xl text-[#16291F]">{selectedMeeting.title}</CardTitle>
+                  <CardDescription className="text-xs text-[#7C9A5E] mt-1 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" /> {formatDate(selectedMeeting.date)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-4">
                   {selectedMeeting.notes && (
-                    <div>
-                      <p className="text-sm text-[#7C9A5E]">Notes</p>
-                      <p className="text-[#16291F]">{selectedMeeting.notes}</p>
+                    <div className="bg-[#e8dcc8]/20 p-4 rounded-lg border border-[#e8dcc8]/40">
+                      <Label className="text-[#16291f] font-extrabold mb-1">{t('meetings.agenda')}</Label>
+                      <p className="text-[#16291F] text-sm leading-relaxed">{selectedMeeting.notes}</p>
                     </div>
                   )}
 
-                  <div>
-                    <p className="text-sm text-[#7C9A5E]">Attendees ({selectedMeeting.attendees.length})</p>
-                    <p className="text-xs text-[#16291F]">{selectedMeeting.attendees.join(', ')}</p>
+                  <div className="bg-[#f9f5f0] border border-[#e8dcc8]/50 p-4 rounded-lg space-y-2">
+                    <Label className="text-[#7C9A5E] font-bold mb-1">{t('meetings.rollCallAttendance')} ({selectedMeeting.attendees.length})</Label>
+                    {selectedMeeting.attendees.length > 0 ? (
+                      <p className="text-xs text-[#16291F] leading-relaxed font-semibold">
+                        {selectedMeeting.attendees.join(', ')}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-[#7C9A5E] italic">{t('meetings.rollCallNotLogged')}</p>
+                    )}
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* Decisions */}
-              <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8">
-                <h4 className="text-lg font-semibold text-[#16291F] mb-4">Decisions</h4>
-
-                {decisions.length > 0 ? (
-                  <div className="space-y-3 mb-6">
-                    {decisions.map((decision) => (
-                      <div
-                        key={decision.id}
-                        className="p-4 rounded-lg border-l-4 border-[#7C9A5E] bg-white"
-                      >
-                        <p className="text-[#16291F]">{decision.description}</p>
-                        <p className="text-xs text-[#7C9A5E] mt-2">
-                          Decided by {decision.decided_by} on {formatDate(decision.created_at)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[#7C9A5E] text-center py-4">No decisions recorded yet</p>
-                )}
-
-                {/* Add Decision (Committee Only) */}
-                {userRole !== 'member' && (
-                  <form onSubmit={addDecision} className="mt-6 pt-6 border-t border-[#E8DCC8]">
-                    <div className="mb-4">
-                      <label className="block text-sm font-semibold text-[#16291F] mb-2">
-                        Add Decision
-                      </label>
-                      <textarea
-                        value={newDecisionText}
-                        onChange={(e) => setNewDecisionText(e.target.value)}
-                        placeholder="What was decided?"
-                        className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
-                        rows={2}
-                      />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl font-serif">{t('meetings.decisionsLogTitle')}</CardTitle>
+                  <CardDescription>{t('meetings.directivesApprovedDesc')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {decisions.length > 0 ? (
+                    <div className="space-y-3">
+                      {decisions.map((decision) => (
+                        <div
+                          key={decision.id}
+                          className="p-4 rounded-lg border-l-4 border-[#7C9A5E] bg-[#f9f5f0] border-[#e8dcc8] text-xs space-y-1"
+                        >
+                          <p className="text-sm font-bold text-[#16291F]">{decision.description}</p>
+                          <p className="text-[10px] text-[#7C9A5E]">
+                            Logged by {decision.decided_by} on {formatDate(decision.created_at)}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                    <button
-                      type="submit"
-                      disabled={!newDecisionText.trim()}
-                      className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md hover:bg-[#6a8a4f] disabled:opacity-50 transition-colors"
-                    >
-                      Record Decision
-                    </button>
-                  </form>
-                )}
-              </div>
+                  ) : (
+                    <p className="text-[#7C9A5E] text-xs italic text-center py-4">{t('meetings.emptyDecisions')}</p>
+                  )}
+
+                  {/* Add Decision Form */}
+                  {userRole !== 'member' && (
+                    <form onSubmit={addDecision} className="mt-6 pt-6 border-t border-[#E8DCC8] space-y-3 text-[#16291F]">
+                      <div>
+                        <Label htmlFor="decision-text">{t('meetings.addCouncilDecisionLabel')}</Label>
+                        <Textarea
+                          id="decision-text"
+                          value={newDecisionText}
+                          onChange={(e) => setNewDecisionText(e.target.value)}
+                          placeholder={t('meetings.summarizeDirectivePlaceholder')}
+                          rows={2}
+                        />
+                      </div>
+                      <Button
+                        type="submit"
+                        variant="moss"
+                        size="sm"
+                        disabled={!newDecisionText.trim()}
+                      >
+                        {t('meetings.recordDecisionButton')}
+                      </Button>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Action items */}
-              <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-6">
-                <h4 className="text-lg font-semibold text-[#16291F] mb-4">Action Items</h4>
-
-                {actions.length > 0 ? (
-                  <div className="space-y-3 mb-6">
-                    {actions.map((action) => (
-                      <div
-                        key={action.id}
-                        className="p-4 rounded-lg border-l-4 border-[#C79A45] bg-white flex items-start justify-between gap-3"
-                      >
-                        <div>
-                          <p className={`text-[#16291F] ${action.status === 'done' ? 'line-through opacity-60' : ''}`}>
-                            {action.task}
-                          </p>
-                          {action.due_date && (
-                            <p className="text-xs text-[#B5532E] mt-1">
-                              Due {formatDate(action.due_date)}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl font-serif">{t('meetings.councilChoresTitle')}</CardTitle>
+                  <CardDescription>{t('meetings.actionItemsDesc')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {actions.length > 0 ? (
+                    <div className="space-y-3">
+                      {actions.map((action) => (
+                        <div
+                          key={action.id}
+                          className={`p-4 rounded-lg border-l-4 bg-[#f9f5f0] flex items-center justify-between gap-4 text-xs transition-all ${
+                            action.status === 'done'
+                              ? 'border-[#7C9A5E] bg-[#7C9A5E]/5'
+                              : 'border-[#C79A45]'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className={`font-bold text-sm text-[#16291F] ${action.status === 'done' ? 'line-through opacity-60' : ''}`}>
+                              {action.task}
                             </p>
+                            {action.due_date && (
+                              <p className="text-[10px] text-[#B5532E] mt-1 font-mono font-semibold">
+                                {t('meetings.dueLabel')} {formatDate(action.due_date)}
+                              </p>
+                            )}
+                          </div>
+                          {userRole !== 'member' && (
+                            <Button
+                              size="sm"
+                              variant={action.status === 'done' ? 'secondary' : 'moss'}
+                              onClick={() => toggleAction(action)}
+                              className="h-7 px-2.5 text-[10px]"
+                            >
+                              {action.status === 'done' ? t('meetings.reopenButton') : t('meetings.markDoneButton')}
+                            </Button>
                           )}
                         </div>
-                        {userRole !== 'member' && (
-                          <button
-                            onClick={() => toggleAction(action)}
-                            className={`px-3 py-1 rounded text-sm font-semibold shrink-0 ${
-                              action.status === 'done'
-                                ? 'bg-[#E8DCC8] text-[#16291F]'
-                                : 'bg-[#7C9A5E] text-white hover:bg-[#6a8a4f]'
-                            }`}
-                          >
-                            {action.status === 'done' ? 'Reopen' : 'Mark done'}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[#7C9A5E] text-center py-4">No action items yet</p>
-                )}
-
-                {userRole !== 'member' && (
-                  <form onSubmit={addAction} className="mt-6 pt-6 border-t border-[#E8DCC8]">
-                    <label className="block text-sm font-semibold text-[#16291F] mb-2">Add Action</label>
-                    <div className="flex gap-2">
-                      <input
-                        value={newActionTask}
-                        onChange={(e) => setNewActionTask(e.target.value)}
-                        placeholder="What needs doing, and by whom?"
-                        className="flex-1 px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!newActionTask.trim()}
-                        className="px-4 py-2 bg-[#C79A45] text-[#16291F] rounded-md font-semibold hover:bg-[#b8894a] disabled:opacity-50"
-                      >
-                        Add
-                      </button>
+                      ))}
                     </div>
-                  </form>
-                )}
-              </div>
+                  ) : (
+                    <p className="text-[#7C9A5E] text-xs italic text-center py-4">{t('meetings.emptyActions')}</p>
+                  )}
+
+                  {/* Add Action Form */}
+                  {userRole !== 'member' && (
+                    <form onSubmit={addAction} className="mt-6 pt-6 border-t border-[#E8DCC8] text-[#16291F]">
+                      <Label htmlFor="action-task">{t('meetings.addCouncilChoreLabel')}</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="action-task"
+                          value={newActionTask}
+                          onChange={(e) => setNewActionTask(e.target.value)}
+                          placeholder={t('meetings.chorePlaceholder')}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="submit"
+                          variant="brass"
+                          disabled={!newActionTask.trim()}
+                        >
+                          {t('meetings.addButton')}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Documents & reports */}
-              <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mt-6">
-                <h4 className="text-lg font-semibold text-[#16291F] mb-4">Documents & Reports</h4>
-
-                {documents.length > 0 ? (
-                  <div className="space-y-2 mb-6">
-                    {documents.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="p-3 rounded-lg border border-[#E8DCC8] bg-white flex items-center justify-between gap-3"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="px-2 py-0.5 rounded text-xs font-semibold capitalize bg-[#7C9A5E] text-white shrink-0">
-                            {doc.kind}
-                          </span>
-                          <a
-                            href={`/api/meetings/${selectedMeeting.id}/documents/${doc.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#16291F] font-medium truncate hover:underline"
-                          >
-                            {doc.filename}
-                          </a>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl font-serif">{t('meetings.documentsAndReportsTitle')}</CardTitle>
+                  <CardDescription>{t('meetings.documentsAndReportsDesc')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {documents.length > 0 ? (
+                    <div className="space-y-2">
+                      {documents.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="p-3 rounded-lg border border-[#e8dcc8] bg-[#f9f5f0] flex items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Badge variant={DOC_BADGES[doc.kind.toLowerCase()] || 'secondary'} className="capitalize text-[10px]">
+                              {getDocKindLabel(doc.kind)}
+                            </Badge>
+                            <a
+                              href={`/api/meetings/${selectedMeeting.id}/documents/${doc.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#16291F] font-bold truncate hover:underline flex items-center gap-1"
+                            >
+                              <FileDown className="h-3.5 w-3.5" /> {doc.filename}
+                            </a>
+                          </div>
+                          {userRole !== 'member' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteDocument(doc.id)}
+                              className="h-7 w-7 p-0 text-[#B5532E] hover:bg-[#B5532E]/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
-                        {userRole !== 'member' && (
-                          <button
-                            onClick={() => handleDeleteDocument(doc.id)}
-                            className="px-3 py-1 rounded text-sm font-semibold shrink-0 bg-[#B5532E] text-white hover:bg-[#9d4520]"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[#7C9A5E] text-center py-4">No documents yet</p>
-                )}
-
-                {userRole !== 'member' && (
-                  <form onSubmit={handleUploadDocument} className="mt-6 pt-6 border-t border-[#E8DCC8] space-y-3">
-                    <label className="block text-sm font-semibold text-[#16291F]">Add document or report</label>
-                    {docError && (
-                      <p className="text-sm text-[#B5532E] font-semibold">{docError}</p>
-                    )}
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <input
-                        id="meeting-doc-file"
-                        type="file"
-                        onChange={(e) => setDocFile(e.target.files?.[0] || null)}
-                        className="text-sm text-[#16291F]"
-                      />
-                      <select
-                        value={docKind}
-                        onChange={(e) => setDocKind(e.target.value as 'minutes' | 'report' | 'other')}
-                        className="px-3 py-2 border border-[#E8DCC8] rounded-md text-[#16291F] bg-white"
-                      >
-                        <option value="report">Report</option>
-                        <option value="minutes">Minutes</option>
-                        <option value="other">Other</option>
-                      </select>
+                      ))}
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-[#16291F]">
-                      <input type="checkbox" checked={docNotify} onChange={(e) => setDocNotify(e.target.checked)} />
-                      Email members about this
-                    </label>
-                    <button
-                      type="submit"
-                      disabled={!docFile || uploading}
-                      className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md font-semibold hover:bg-[#6a8a4f] disabled:opacity-50"
-                    >
-                      {uploading ? 'Uploading…' : 'Upload'}
-                    </button>
-                    <p className="text-xs text-[#7C9A5E]">Accepted: PDF, Word, Excel, PowerPoint, images, txt, csv · max 25 MB</p>
-                  </form>
-                )}
-              </div>
+                  ) : (
+                    <p className="text-[#7C9A5E] text-xs italic text-center py-4">{t('meetings.noReportsUploaded')}</p>
+                  )}
+
+                  {/* Add document form */}
+                  {userRole !== 'member' && (
+                    <form onSubmit={handleUploadDocument} className="mt-6 pt-6 border-t border-[#E8DCC8] space-y-4 text-[#16291F]">
+                      <Label>{t('meetings.uploadCouncilDocLabel')}</Label>
+                      {docError && (
+                        <div className="bg-[#B5532E]/10 border-l-4 border-[#B5532E] p-2.5 rounded text-xs text-[#B5532E] flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" /> {docError}
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex flex-col justify-center">
+                          <input
+                            id="meeting-doc-file"
+                            type="file"
+                            onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                            className="text-xs text-[#16291F]"
+                          />
+                        </div>
+                        <div>
+                          <Select
+                            value={docKind}
+                            onChange={(e) => setDocKind(e.target.value as any)}
+                          >
+                            <option value="report">{t('meetings.reportPaperOption')}</option>
+                            <option value="minutes">{t('meetings.minutesPaperOption')}</option>
+                            <option value="other">{t('meetings.otherPaperOption')}</option>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input 
+                          id="meeting-doc-notify"
+                          type="checkbox" 
+                          checked={docNotify} 
+                          onChange={(e) => setDocNotify(e.target.checked)}
+                          className="h-4 w-4 rounded border-[#e8dcc8] text-[#7C9A5E] focus:ring-[#C79A45]"
+                        />
+                        <label htmlFor="meeting-doc-notify" className="text-xs text-[#16291F] font-semibold flex items-center gap-1">
+                          <MailCheck className="h-3.5 w-3.5 text-[#7C9A5E]" /> {t('meetings.emailMembersCheckbox')}
+                        </label>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        variant="moss"
+                        disabled={!docFile || uploading}
+                      >
+                        {uploading ? t('meetings.uploadingStatus') : t('meetings.uploadDocButton')}
+                      </Button>
+                      <p className="text-[10px] text-[#7C9A5E] font-mono leading-none">
+                        {t('meetings.maxSizeNotice')}
+                      </p>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+
             </div>
+          ) : (
+            <Card className="lg:col-span-2 flex items-center justify-center p-12 text-center bg-[#F3ECDD]">
+              <div className="space-y-3">
+                <Calendar className="h-12 w-12 mx-auto text-[#7C9A5E]" />
+                <h3 className="text-xl font-bold font-serif text-[#16291F]">{t('meetings.noConvocationsSelected')}</h3>
+                <p className="text-[#7C9A5E] text-sm max-w-sm mx-auto">
+                  {t('meetings.chooseConvocationDesc')}
+                </p>
+              </div>
+            </Card>
           )}
+
         </div>
+
       </main>
     </div>
   );

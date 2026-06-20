@@ -2,23 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-const ROLE_CAPS = [
-  { cap: 'View map, fund, contributions, case, meetings, community', member: true, committee: true },
-  { cap: 'Respond to events/polls; edit own profile', member: true, committee: true },
-  { cap: 'Record/edit contributions & expenses', member: false, committee: true },
-  { cap: 'Upload the map; set parcel counts; manage the case', member: false, committee: true },
-  { cap: 'Create meetings, events, polls; broadcast email', member: false, committee: true },
-  { cap: 'Add/remove members, assign roles (owner)', member: false, committee: true },
-];
+import { useLanguage } from '@/app/components/LanguageProvider';
 
 export default function RulesPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [rules, setRules] = useState('');
   const [role, setRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+
+  const ROLE_CAPS = [
+    { cap: t('rules.cap1'), member: true, committee: true },
+    { cap: t('rules.cap2'), member: true, committee: true },
+    { cap: t('rules.cap3'), member: false, committee: true },
+    { cap: t('rules.cap4'), member: false, committee: true },
+    { cap: t('rules.cap5'), member: false, committee: true },
+    { cap: t('rules.cap6'), member: false, committee: true },
+  ];
 
   useEffect(() => {
     (async () => {
@@ -52,7 +54,7 @@ export default function RulesPage() {
     }
   };
 
-  if (isLoading) return <div className="p-8 text-center">Loading...</div>;
+  if (isLoading) return <div className="p-8 text-center">{t('common.loading')}</div>;
 
   const isCommittee = role === 'committee' || role === 'owner';
 
@@ -60,17 +62,17 @@ export default function RulesPage() {
     <div className="min-h-screen bg-[#16291F] text-[#F3ECDD]">
       <div className="max-w-3xl mx-auto p-6">
         <h1 className="text-4xl font-bold mb-1" style={{ fontFamily: 'var(--font-fraunces)' }}>
-          Rules & Member Agreement
+          {t('rules.title')}
         </h1>
-        <p className="text-[#C79A45] mb-6">How we hold the land and the fund together</p>
+        <p className="text-[#C79A45] mb-6">{t('rules.subtitle')}</p>
 
         <section className="bg-[#F3ECDD] text-[#16291F] rounded-lg p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-fraunces)' }}>The agreement</h2>
+            <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-fraunces)' }}>{t('rules.agreement')}</h2>
             {isCommittee && !editing && (
               <button onClick={() => { setDraft(rules); setEditing(true); }}
                 className="px-3 py-1.5 bg-[#C79A45] text-[#16291F] rounded font-semibold text-sm hover:bg-[#b8894a]">
-                Edit
+                {t('rules.edit')}
               </button>
             )}
           </div>
@@ -82,29 +84,31 @@ export default function RulesPage() {
                 onChange={(e) => setDraft(e.target.value)}
                 rows={12}
                 className="w-full px-3 py-2 bg-white border border-[#C79A45] rounded text-[#16291F]"
-                placeholder="Write the group's rules and member agreement…"
+                placeholder={t('rules.placeholder')}
               />
               <div className="flex gap-2">
-                <button onClick={handleSave} className="px-4 py-2 bg-[#7C9A5E] text-[#16291F] rounded font-semibold">Save</button>
-                <button onClick={() => setEditing(false)} className="px-4 py-2 bg-[#E8DCC8] text-[#16291F] rounded font-semibold">Cancel</button>
+                <button onClick={handleSave} className="px-4 py-2 bg-[#7C9A5E] text-[#16291F] rounded font-semibold">{t('rules.save')}</button>
+                <button onClick={() => setEditing(false)} className="px-4 py-2 bg-[#E8DCC8] text-[#16291F] rounded font-semibold">{t('rules.cancel')}</button>
               </div>
             </div>
           ) : rules ? (
             <p className="whitespace-pre-wrap leading-relaxed">{rules}</p>
           ) : (
-            <p className="text-[#7C9A5E] italic">No rules recorded yet.{isCommittee ? ' Use Edit to add them.' : ''}</p>
+            <p className="text-[#7C9A5E] italic">
+              {isCommittee ? t('rules.empty') : t('rules.emptyMember')}
+            </p>
           )}
         </section>
 
         <section>
-          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'var(--font-fraunces)' }}>Roles</h2>
+          <h2 className="text-2xl font-bold mb-4" style={{ fontFamily: 'var(--font-fraunces)' }}>{t('rules.rolesTitle')}</h2>
           <div className="bg-[#1A3A2E] rounded border border-[#C79A45]/50 overflow-x-auto">
             <table className="w-full">
               <thead className="bg-[#0d1a13] border-b border-[#C79A45]/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-[#C79A45]">Capability</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-[#C79A45]">Member</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-[#C79A45]">Committee</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[#C79A45]">{t('rules.capabilityHeader')}</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-[#C79A45]">{t('rules.memberHeader')}</th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-[#C79A45]">{t('rules.committeeHeader')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#C79A45]/20">

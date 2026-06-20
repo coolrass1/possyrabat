@@ -48,8 +48,12 @@ export function initializeDb() {
       recorded_by TEXT NOT NULL,
       created_at INTEGER NOT NULL,
       deleted_at INTEGER,
+      quarter_id TEXT,
+      month_id TEXT,
       FOREIGN KEY (member_id) REFERENCES members(id),
-      FOREIGN KEY (recorded_by) REFERENCES members(id)
+      FOREIGN KEY (recorded_by) REFERENCES members(id),
+      FOREIGN KEY (quarter_id) REFERENCES target_quarters(id),
+      FOREIGN KEY (month_id) REFERENCES target_months(id)
     );
 
     CREATE TABLE IF NOT EXISTS expenses (
@@ -78,6 +82,7 @@ export function initializeDb() {
       id TEXT PRIMARY KEY,
       per_parcel_fee REAL NOT NULL DEFAULT 0,
       currency TEXT NOT NULL DEFAULT 'EUR',
+      enabled_sections TEXT,
       updated_by TEXT,
       updated_at INTEGER
     );
@@ -292,6 +297,36 @@ export function initializeDb() {
       FOREIGN KEY (poll_id) REFERENCES polls(id),
       FOREIGN KEY (member_id) REFERENCES members(id)
     );
+
+    CREATE TABLE IF NOT EXISTS target_quarters (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      start_date INTEGER NOT NULL,
+      end_date INTEGER NOT NULL,
+      target_amount REAL NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS target_months (
+      id TEXT PRIMARY KEY,
+      quarter_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      target_amount REAL NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (quarter_id) REFERENCES target_quarters(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS member_quarter_obligations (
+      id TEXT PRIMARY KEY,
+      member_id TEXT NOT NULL,
+      quarter_id TEXT NOT NULL,
+      amount_due REAL NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (member_id) REFERENCES members(id),
+      FOREIGN KEY (quarter_id) REFERENCES target_quarters(id),
+      UNIQUE(member_id, quarter_id)
+    );
   `);
 
   // Lightweight migrations for columns added after a table's first creation.
@@ -306,9 +341,110 @@ export function initializeDb() {
   };
   addColumn(`ALTER TABLE members ADD COLUMN status TEXT DEFAULT 'active'`);
   addColumn(`ALTER TABLE settings ADD COLUMN rules_text TEXT`);
+  addColumn(`ALTER TABLE settings ADD COLUMN enabled_sections TEXT`);
   addColumn(`ALTER TABLE cases ADD COLUMN lawyer_name TEXT`);
   addColumn(`ALTER TABLE cases ADD COLUMN lawyer_contact TEXT`);
   addColumn(`ALTER TABLE case_documents ADD COLUMN mime_type TEXT`);
+  addColumn(`ALTER TABLE contributions ADD COLUMN quarter_id TEXT`);
+  addColumn(`ALTER TABLE contributions ADD COLUMN month_id TEXT`);
+
+  // Migrate historical contributions to match targets by dates
+  try {
+    db.exec(`
+      UPDATE contributions
+      SET quarter_id = (
+        SELECT id FROM target_quarters
+        WHERE contributions.date >= target_quarters.start_date
+          AND contributions.date <= target_quarters.end_date
+        LIMIT 1
+      )
+      WHERE quarter_id IS NULL;
+    `);
+  } catch (err) {
+    console.error('Failed to migrate historical contributions:', err);
+  }
+
+  // Pre-populate target quarters and months if target_quarters is empty
+  try {
+    const quartersCount = db.prepare('SELECT COUNT(*) as count FROM target_quarters').get() as { count: number } | undefined;
+    if (quartersCount && quartersCount.count === 0) {
+      const insertQ = db.prepare(`
+        INSERT OR IGNORE INTO target_quarters (id, name, start_date, end_date, target_amount, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      const insertM = db.prepare(`
+        INSERT OR IGNORE INTO target_months (id, quarter_id, name, target_amount, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      
+      const now = Date.now();
+      const defaultQuarters = [
+        { id: 'q3-2026', name: 'Q3 2026', start: 1782940800000, end: 1790812799000, target: 600000, months: [
+          { id: 'm-jul-2026', name: 'July 2026', target: 200000 },
+          { id: 'm-aug-2026', name: 'August 2026', target: 200000 },
+          { id: 'm-sep-2026', name: 'September 2026', target: 200000 },
+        ]},
+        { id: 'q4-2026', name: 'Q4 2026', start: 1790812800000, end: 1798761599000, target: 600000, months: [
+          { id: 'm-oct-2026', name: 'October 2026', target: 200000 },
+          { id: 'm-nov-2026', name: 'November 2026', target: 200000 },
+          { id: 'm-dec-2026', name: 'December 2026', target: 200000 },
+        ]},
+        { id: 'q1-2027', name: 'Q1 2027', start: 1798761600000, end: 1806537599000, target: 600000, months: [
+          { id: 'm-jan-2027', name: 'January 2027', target: 200000 },
+          { id: 'm-feb-2027', name: 'February 2027', target: 200000 },
+          { id: 'm-mar-2027', name: 'March 2027', target: 200000 },
+        ]},
+        { id: 'q2-2027', name: 'Q2 2027', start: 1806537600000, end: 1814399999000, target: 600000, months: [
+          { id: 'm-apr-2027', name: 'April 2027', target: 200000 },
+          { id: 'm-may-2027', name: 'May 2027', target: 200000 },
+          { id: 'm-jun-2027', name: 'June 2027', target: 200000 },
+        ]},
+        { id: 'q3-2027', name: 'Q3 2027', start: 1814400000000, end: 1822262399000, target: 600000, months: [
+          { id: 'm-jul-2027', name: 'July 2027', target: 200000 },
+          { id: 'm-aug-2027', name: 'August 2027', target: 200000 },
+          { id: 'm-sep-2027', name: 'September 2027', target: 200000 },
+        ]},
+        { id: 'q4-2027', name: 'Q4 2027', start: 1822262400000, end: 1830211199000, target: 600000, months: [
+          { id: 'm-oct-2027', name: 'October 2027', target: 200000 },
+          { id: 'm-nov-2027', name: 'November 2027', target: 200000 },
+          { id: 'm-dec-2027', name: 'December 2027', target: 200000 },
+        ]},
+      ];
+      
+      for (const q of defaultQuarters) {
+        insertQ.run(q.id, q.name, q.start, q.end, q.target, now);
+        for (const m of q.months) {
+          insertM.run(m.id, q.id, m.name, m.target, now);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to pre-populate target quarters:', err);
+  }
+
+  // Pre-populate global settings and default enabled sections if needed
+  try {
+    const defaultSections = JSON.stringify([
+      '/land',
+      '/case',
+      '/contributions',
+      '/spending',
+      '/meetings'
+    ]);
+    const existing = db.prepare('SELECT enabled_sections FROM settings WHERE id = ?').get('global') as any;
+    if (!existing) {
+      db.prepare(`
+        INSERT INTO settings (id, per_parcel_fee, currency, enabled_sections, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run('global', 0, 'EUR', defaultSections, Date.now());
+    } else if (existing.enabled_sections === null || existing.enabled_sections === undefined) {
+      db.prepare(`
+        UPDATE settings SET enabled_sections = ? WHERE id = ?
+      `).run(defaultSections, 'global');
+    }
+  } catch (err) {
+    console.error('Failed to pre-populate global settings:', err);
+  }
 }
 
 // Ensure the schema exists whenever the db module is loaded (idempotent).

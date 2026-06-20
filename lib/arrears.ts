@@ -7,10 +7,13 @@ export async function calculateMemberObligation(memberId: string): Promise<numbe
   const member = getMemberById(memberId);
   if (!member) return 0;
 
-  const settings = db.prepare(`SELECT per_parcel_fee FROM settings LIMIT 1`).get() as any;
-  const fee = settings?.per_parcel_fee || 0;
+  const result = db.prepare(`
+    SELECT COALESCE(SUM(amount_due), 0) as total
+    FROM member_quarter_obligations
+    WHERE member_id = ?
+  `).get(memberId) as any;
 
-  return member.parcel_count * fee;
+  return result?.total || 0;
 }
 
 export async function getMemberTotalPaid(memberId: string): Promise<number> {

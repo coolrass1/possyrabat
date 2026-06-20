@@ -48,12 +48,16 @@ export async function GET(request: NextRequest) {
 
     // For each member, calculate paid amount and status
     const items = members.map((member) => {
+      const obResult = db
+        .prepare('SELECT SUM(amount_due) as total FROM member_quarter_obligations WHERE member_id = ?')
+        .get(member.id) as any;
+      const obligation = obResult?.total || 0;
+
       const paidResult = db
         .prepare('SELECT SUM(amount) as total FROM contributions WHERE member_id = ? AND deleted_at IS NULL')
         .get(member.id) as any;
       const paid = paidResult?.total || 0;
 
-      const obligation = member.parcel_count * fee;
       const balance = paid - obligation;
       const status = balance >= 0 ? 'up to date' : `behind by €${Math.abs(balance)}`;
 

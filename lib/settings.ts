@@ -5,16 +5,34 @@ const SETTINGS_ID = 'global';
 export interface Settings {
   per_parcel_fee: number;
   currency: string;
+  enabled_sections: string[];
 }
+
+export const DEFAULT_ENABLED_SECTIONS = [
+  '/land',
+  '/case',
+  '/contributions',
+  '/spending',
+  '/meetings'
+];
 
 export function getSettings(): Settings {
   const row = db.prepare('SELECT * FROM settings WHERE id = ?').get(SETTINGS_ID) as any;
+  let enabledSections = DEFAULT_ENABLED_SECTIONS;
+  if (row && row.enabled_sections) {
+    try {
+      enabledSections = JSON.parse(row.enabled_sections);
+    } catch (e) {
+      // ignore
+    }
+  }
   if (!row) {
-    return { per_parcel_fee: 0, currency: 'EUR' };
+    return { per_parcel_fee: 0, currency: 'EUR', enabled_sections: enabledSections };
   }
   return {
     per_parcel_fee: row.per_parcel_fee,
     currency: row.currency || 'EUR',
+    enabled_sections: enabledSections,
   };
 }
 
@@ -30,9 +48,31 @@ export function setPerParcelFee(fee: number, updatedBy: string): Settings {
       SETTINGS_ID
     );
   } else {
+    const sectionsJson = JSON.stringify(DEFAULT_ENABLED_SECTIONS);
     db.prepare(
-      'INSERT INTO settings (id, per_parcel_fee, currency, updated_by, updated_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(SETTINGS_ID, fee, 'EUR', updatedBy, now);
+      'INSERT INTO settings (id, per_parcel_fee, currency, enabled_sections, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(SETTINGS_ID, fee, 'EUR', sectionsJson, updatedBy, now);
+  }
+
+  return getSettings();
+}
+
+export function setEnabledSections(sections: string[], updatedBy: string): Settings {
+  const now = Date.now();
+  const existing = db.prepare('SELECT id FROM settings WHERE id = ?').get(SETTINGS_ID);
+  const sectionsJson = JSON.stringify(sections);
+
+  if (existing) {
+    db.prepare('UPDATE settings SET enabled_sections = ?, updated_by = ?, updated_at = ? WHERE id = ?').run(
+      sectionsJson,
+      updatedBy,
+      now,
+      SETTINGS_ID
+    );
+  } else {
+    db.prepare(
+      'INSERT INTO settings (id, per_parcel_fee, currency, enabled_sections, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(SETTINGS_ID, 0, 'EUR', sectionsJson, updatedBy, now);
   }
 
   return getSettings();

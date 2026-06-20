@@ -3,17 +3,32 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Event } from '@/lib/types';
+import { Calendar, Plus, MapPin, Clock, ArrowLeft, Volume2, Users, FileText, X } from 'lucide-react';
 
-const EVENT_TYPE_COLORS: Record<string, string> = {
-  meeting: '#7C9A5E',
-  event: '#C79A45',
-  announcement: '#B5532E',
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Select } from '@/app/components/ui/select';
+import { Textarea } from '@/app/components/ui/textarea';
+import { Badge } from '@/app/components/ui/badge';
+import { Label } from '@/app/components/ui/label';
+
+const EVENT_TYPE_BADGES: Record<string, 'moss' | 'brass' | 'clay'> = {
+  meeting: 'moss',
+  event: 'brass',
+  announcement: 'clay',
 };
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   meeting: 'Meeting',
   event: 'Event',
   announcement: 'Announcement',
+};
+
+const EVENT_TYPE_ICONS: Record<string, React.ReactNode> = {
+  meeting: <Users className="h-4 w-4" />,
+  event: <Calendar className="h-4 w-4" />,
+  announcement: <Volume2 className="h-4 w-4" />,
 };
 
 export default function EventsPage() {
@@ -23,6 +38,7 @@ export default function EventsPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -93,14 +109,6 @@ export default function EventsPage() {
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   const formatDateTime = (timestamp: number, time: string) => {
     const date = new Date(timestamp);
     const dateStr = date.toLocaleDateString('en-US', {
@@ -118,223 +126,267 @@ export default function EventsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#16291F]">
-        <p className="text-[#F3ECDD]">Loading...</p>
+      <div className="min-h-screen bg-[#16291F] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#C79A45] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[#F3ECDD] font-serif tracking-wider animate-pulse">Loading Events Ledger...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#16291F]">
-
-      <main className="max-w-6xl mx-auto p-8">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-[#F3ECDD] font-serif">Events & Announcements</h2>
+    <div className="min-h-screen bg-[#16291F] pb-16">
+      <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+        
+        {/* Navigation / Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#e8dcc8]/20 pb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="sm" onClick={() => router.push('/')} className="bg-[#0d1a13] text-[#F3ECDD] border-[#e8dcc8]/20 hover:bg-[#16291F]">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold font-serif text-[#F3ECDD]">Events & Convocations</h1>
+              <p className="text-[#7C9A5E] text-sm mt-0.5">Stay updated on communal schedules, hearings, and administrative declarations.</p>
+            </div>
+          </div>
           {userRole !== 'member' && (
-            <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md hover:bg-[#6a8a4f] transition-colors"
-            >
-              {showCreateForm ? 'Cancel' : '+ Create Event'}
-            </button>
+            <Button variant="brass" onClick={() => setShowCreateForm(!showCreateForm)} className="gap-1.5">
+              <Plus className="h-4 w-4" /> {showCreateForm ? 'Cancel Form' : 'Post Announcement'}
+            </Button>
           )}
         </div>
 
         {/* Create Event Form */}
         {showCreateForm && userRole !== 'member' && (
-          <div className="bg-[#F3ECDD] rounded-lg shadow-lg p-8 mb-8">
-            <h3 className="text-lg font-semibold text-[#16291F] mb-6">Create Event</h3>
-            <form onSubmit={handleCreateEvent} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-[#16291F] mb-2">Title</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-[#16291F] mb-2">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+          <Card className="border border-[#C79A45]/30">
+            <CardHeader>
+              <CardTitle>Schedule Council Event</CardTitle>
+              <CardDescription>Setup details, designate type, and coordinate date locations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateEvent} className="space-y-4 text-[#16291F]">
                 <div>
-                  <label className="block text-sm font-semibold text-[#16291F] mb-2">Date</label>
-                  <input
-                    type="date"
+                  <Label htmlFor="event-title">Title / Headline</Label>
+                  <Input
+                    id="event-title"
                     required
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="e.g. Legal update overview"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-semibold text-[#16291F] mb-2">Time</label>
-                  <input
-                    type="time"
-                    required
-                    value={formData.time}
-                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                    className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
+                  <Label htmlFor="event-description">Event Description</Label>
+                  <Textarea
+                    id="event-description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
+                    placeholder="Summary of details for members..."
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-[#16291F] mb-2">Location</label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
-                />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="event-date">Date</Label>
+                    <Input
+                      id="event-date"
+                      type="date"
+                      required
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="event-time">Time</Label>
+                    <Input
+                      id="event-time"
+                      type="time"
+                      required
+                      value={formData.time}
+                      onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    />
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-[#16291F] mb-2">Type</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-[#E8DCC8] rounded-md focus:outline-none focus:border-[#C79A45]"
-                >
-                  <option value="event">Event</option>
-                  <option value="meeting">Meeting</option>
-                  <option value="announcement">Announcement</option>
-                </select>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="event-location">Location Coordinate</Label>
+                    <Input
+                      id="event-location"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      placeholder="e.g. Co-op Registry Room, Zoom link..."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="event-type">Category Type</Label>
+                    <Select
+                      id="event-type"
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                    >
+                      <option value="event">Co-op Event</option>
+                      <option value="meeting">Council Meeting</option>
+                      <option value="announcement">Announcement</option>
+                    </Select>
+                  </div>
+                </div>
 
-              <button
-                type="submit"
-                className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md hover:bg-[#6a8a4f] transition-colors"
-              >
-                Create Event
-              </button>
-            </form>
-          </div>
+                <div className="pt-2">
+                  <Button type="submit" variant="moss">
+                    Create Event Post
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Events List */}
-        <div className="space-y-8">
+        {/* Events listing */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
           {/* Upcoming Events */}
-          {upcomingEvents.length > 0 && (
-            <div>
-              <h3 className="text-xl font-semibold text-[#F3ECDD] mb-4">Upcoming</h3>
-              <div className="space-y-3">
-                {upcomingEvents.map((event) => (
+          <Card>
+            <CardHeader className="pb-4 border-b border-[#e8dcc8]/20">
+              <CardTitle className="text-xl font-serif text-[#16291F]">Upcoming Schedules</CardTitle>
+              <CardDescription>Scheduled directives yet to occur</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+              {upcomingEvents.length > 0 ? (
+                upcomingEvents.map((event) => (
                   <div
                     key={event.id}
                     onClick={() => setSelectedEvent(event)}
-                    className={`p-4 rounded-lg border-l-4 cursor-pointer transition-colors ${
+                    className={`p-4 rounded-lg border-l-4 cursor-pointer transition-all duration-300 flex items-center justify-between gap-4 border ${
                       selectedEvent?.id === event.id
-                        ? 'bg-[#F3ECDD]'
-                        : 'bg-white hover:bg-[#F9F5F0]'
+                        ? 'bg-[#f3ecdd] border-transparent shadow-md'
+                        : 'bg-[#f9f5f0] border-[#e8dcc8]/40 hover:bg-[#e8dcc8]/30'
                     }`}
                     style={{
-                      borderColor: EVENT_TYPE_COLORS[event.type],
+                      borderLeftColor: EVENT_TYPE_BADGES[event.type] === 'moss' ? '#7C9A5E' : EVENT_TYPE_BADGES[event.type] === 'brass' ? '#C79A45' : '#B5532E'
                     }}
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-semibold text-[#16291F]">{event.title}</p>
-                        <p className="text-sm text-[#7C9A5E] mt-1">
-                          {formatDateTime(event.date, event.time)}
-                          {event.location && ` · ${event.location}`}
-                        </p>
-                      </div>
-                      <span
-                        className="px-2 py-1 text-xs text-white rounded"
-                        style={{ backgroundColor: EVENT_TYPE_COLORS[event.type] }}
-                      >
-                        {EVENT_TYPE_LABELS[event.type]}
-                      </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-sm text-[#16291F]">{event.title}</p>
+                      <p className="text-[11px] text-[#7C9A5E] mt-1 flex items-center gap-1.5 font-mono">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        {formatDateTime(event.date, event.time)}
+                        {event.location && (
+                          <span className="flex items-center gap-0.5 truncate">
+                            · <MapPin className="h-3 w-3 shrink-0" /> {event.location}
+                          </span>
+                        )}
+                      </p>
                     </div>
+                    <Badge variant={EVENT_TYPE_BADGES[event.type] || 'secondary'} className="text-[10px] shrink-0 font-bold gap-1 font-mono">
+                      {EVENT_TYPE_ICONS[event.type]}
+                      {EVENT_TYPE_LABELS[event.type]}
+                    </Badge>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                ))
+              ) : (
+                <p className="text-[#7C9A5E] text-xs italic text-center py-6">No upcoming events scheduled.</p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Past Events */}
-          {pastEvents.length > 0 && (
-            <div>
-              <h3 className="text-xl font-semibold text-[#F3ECDD] mb-4">Past Events</h3>
-              <div className="space-y-3">
-                {pastEvents.map((event) => (
+          <Card>
+            <CardHeader className="pb-4 border-b border-[#e8dcc8]/20">
+              <CardTitle className="text-xl font-serif text-[#16291F]">Historic logs</CardTitle>
+              <CardDescription>Archive logs of completed convocations</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+              {pastEvents.length > 0 ? (
+                pastEvents.map((event) => (
                   <div
                     key={event.id}
                     onClick={() => setSelectedEvent(event)}
-                    className={`p-4 rounded-lg border-l-4 cursor-pointer transition-colors opacity-75 ${
+                    className={`p-4 rounded-lg border-l-4 cursor-pointer transition-all duration-300 opacity-70 flex items-center justify-between gap-4 border ${
                       selectedEvent?.id === event.id
-                        ? 'bg-[#F3ECDD]'
-                        : 'bg-white hover:bg-[#F9F5F0]'
+                        ? 'bg-[#f3ecdd] border-transparent shadow-md'
+                        : 'bg-[#f9f5f0] border-[#e8dcc8]/40 hover:bg-[#e8dcc8]/30'
                     }`}
                     style={{
-                      borderColor: EVENT_TYPE_COLORS[event.type],
+                      borderLeftColor: EVENT_TYPE_BADGES[event.type] === 'moss' ? '#7C9A5E' : EVENT_TYPE_BADGES[event.type] === 'brass' ? '#C79A45' : '#B5532E'
                     }}
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-semibold text-[#16291F]">{event.title}</p>
-                        <p className="text-sm text-[#7C9A5E] mt-1">
-                          {formatDateTime(event.date, event.time)}
-                          {event.location && ` · ${event.location}`}
-                        </p>
-                      </div>
-                      <span
-                        className="px-2 py-1 text-xs text-white rounded"
-                        style={{ backgroundColor: EVENT_TYPE_COLORS[event.type] }}
-                      >
-                        {EVENT_TYPE_LABELS[event.type]}
-                      </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-sm text-[#16291F]">{event.title}</p>
+                      <p className="text-[11px] text-[#7C9A5E] mt-1 flex items-center gap-1.5 font-mono">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        {formatDateTime(event.date, event.time)}
+                        {event.location && (
+                          <span className="flex items-center gap-0.5 truncate">
+                            · <MapPin className="h-3 w-3 shrink-0" /> {event.location}
+                          </span>
+                        )}
+                      </p>
                     </div>
+                    <Badge variant="secondary" className="text-[10px] shrink-0 font-bold gap-1 font-mono">
+                      {EVENT_TYPE_ICONS[event.type]}
+                      {EVENT_TYPE_LABELS[event.type]}
+                    </Badge>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {events.length === 0 && (
-            <p className="text-center text-[#7C9A5E] py-8">No events yet</p>
-          )}
+                ))
+              ) : (
+                <p className="text-[#7C9A5E] text-xs italic text-center py-6">No historical records logged.</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Event Details */}
+        {/* Event Details Popup Modal */}
         {selectedEvent && (
-          <div className="fixed bottom-8 right-8 bg-[#F3ECDD] rounded-lg shadow-lg p-8 max-w-md">
-            <h3 className="text-lg font-semibold text-[#16291F] mb-4">{selectedEvent.title}</h3>
+          <div className="fixed inset-0 bg-[#0d1a13]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all animate-in fade-in duration-300">
+            <Card className="w-full max-w-md border border-[#e8dcc8] shadow-2xl relative">
+              <button 
+                onClick={() => setSelectedEvent(null)}
+                className="absolute right-4 top-4 text-[#7C9A5E] hover:text-[#16291F] transition-colors p-1 rounded-full hover:bg-[#e8dcc8]/30"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <CardHeader className="pb-2 border-b border-[#e8dcc8]/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant={EVENT_TYPE_BADGES[selectedEvent.type] || 'secondary'} className="text-[10px] font-bold gap-1">
+                    {EVENT_TYPE_ICONS[selectedEvent.type]}
+                    {EVENT_TYPE_LABELS[selectedEvent.type]}
+                  </Badge>
+                </div>
+                <CardTitle className="text-2xl font-serif text-[#16291F]">{selectedEvent.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4 text-xs md:text-sm text-[#16291F]">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 bg-[#f9f5f0] p-2.5 rounded border border-[#e8dcc8]/40">
+                    <Clock className="h-4 w-4 text-[#7C9A5E] shrink-0" />
+                    <div>
+                      <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">Convocations Time</span>
+                      <span className="font-semibold text-xs">{formatDateTime(selectedEvent.date, selectedEvent.time)}</span>
+                    </div>
+                  </div>
 
-            <div className="space-y-2 text-sm mb-6">
-              <p>
-                <span className="font-semibold text-[#7C9A5E]">Date & Time:</span>{' '}
-                {formatDateTime(selectedEvent.date, selectedEvent.time)}
-              </p>
-              {selectedEvent.location && (
-                <p>
-                  <span className="font-semibold text-[#7C9A5E]">Location:</span> {selectedEvent.location}
-                </p>
-              )}
-              {selectedEvent.description && (
-                <p>
-                  <span className="font-semibold text-[#7C9A5E]">Description:</span> {selectedEvent.description}
-                </p>
-              )}
-            </div>
+                  {selectedEvent.location && (
+                    <div className="flex items-center gap-2 bg-[#f9f5f0] p-2.5 rounded border border-[#e8dcc8]/40">
+                      <MapPin className="h-4 w-4 text-[#7C9A5E] shrink-0" />
+                      <div>
+                        <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">Coordinates Location</span>
+                        <span className="font-semibold text-xs">{selectedEvent.location}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-            <button
-              onClick={() => setSelectedEvent(null)}
-              className="px-4 py-2 bg-[#7C9A5E] text-white rounded-md hover:bg-[#6a8a4f] transition-colors w-full"
-            >
-              Close
-            </button>
+                {selectedEvent.description && (
+                  <div className="bg-[#e8dcc8]/20 p-3.5 rounded border border-[#e8dcc8]/40 space-y-1">
+                    <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">Description Details</span>
+                    <p className="text-xs text-[#16291F] leading-relaxed whitespace-pre-wrap">{selectedEvent.description}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
       </main>

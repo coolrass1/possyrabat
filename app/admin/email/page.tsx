@@ -2,6 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Mail, Send, History, ArrowLeft, MailCheck, AlertCircle } from 'lucide-react';
+
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/app/components/ui/table';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Textarea } from '@/app/components/ui/textarea';
+import { Badge } from '@/app/components/ui/badge';
+import { Label } from '@/app/components/ui/label';
 
 interface EmailLogRow {
   id: string;
@@ -64,77 +73,128 @@ export default function EmailAdminPage() {
     setSending(false);
   };
 
-  if (isLoading) return <div className="p-8 text-center">Loading...</div>;
-
-  return (
-    <div className="min-h-screen bg-[#16291F] text-[#F3ECDD]">
-      <div className="max-w-4xl mx-auto p-6">
-        <h1 className="text-4xl font-bold mb-1" style={{ fontFamily: 'var(--font-fraunces)' }}>
-          Email
-        </h1>
-        <p className="text-[#C79A45] mb-6">Broadcast to members and review the transparency log</p>
-
-        {notice && <div className="mb-4 p-3 rounded bg-[#7C9A5E] text-[#16291F] text-sm font-semibold">{notice}</div>}
-
-        <form onSubmit={handleBroadcast} className="bg-[#1A3A2E] p-6 rounded mb-8 border border-[#C79A45] space-y-4">
-          <input
-            required
-            placeholder="Subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="w-full px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded"
-          />
-          <textarea
-            required
-            placeholder="Message to all members…"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={5}
-            className="w-full px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded"
-          />
-          <button
-            type="submit"
-            disabled={sending}
-            className="px-4 py-2 bg-[#C79A45] text-[#16291F] rounded font-semibold hover:bg-[#b8894a] disabled:opacity-50"
-          >
-            {sending ? 'Sending…' : 'Broadcast to all members'}
-          </button>
-        </form>
-
-        <h2 className="text-2xl font-bold mb-3" style={{ fontFamily: 'var(--font-fraunces)' }}>
-          Email log
-        </h2>
-        <div className="bg-[#1A3A2E] rounded border border-[#C79A45]/50 overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-[#0d1a13] border-b border-[#C79A45]/50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-[#C79A45]">When</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-[#C79A45]">To</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-[#C79A45]">Subject</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-[#C79A45]">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#C79A45]/20">
-              {log.length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-[#C79A45]">No emails sent yet</td></tr>
-              ) : (
-                log.map((row) => (
-                  <tr key={row.id} className="hover:bg-[#2A4A3E]">
-                    <td className="px-4 py-3 text-sm text-[#C79A45]">
-                      {new Date(row.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="px-4 py-3 text-sm">{row.to}</td>
-                    <td className="px-4 py-3 text-sm font-semibold">{row.subject}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="px-2 py-1 rounded text-xs font-semibold bg-[#7C9A5E] text-[#16291F] capitalize">{row.status}</span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#16291F] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#C79A45] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[#F3ECDD] font-serif tracking-wider animate-pulse">Loading Communications Panel...</p>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#16291F] pb-16">
+      <main className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
+        
+        {/* Navigation / Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={() => router.push('/')} className="bg-[#0d1a13] text-[#F3ECDD] border-[#e8dcc8]/20 hover:bg-[#16291F]">
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Home
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold font-serif text-[#F3ECDD]">Email Broadcasts</h1>
+            <p className="text-[#7C9A5E] text-sm mt-0.5">Communicate changes, meeting warnings, and statements to all cooperative members.</p>
+          </div>
+        </div>
+
+        {notice && (
+          <div className="bg-[#7C9A5E]/15 border-l-4 border-[#7C9A5E] p-4 rounded text-sm text-[#7C9A5E] flex items-center gap-2 font-semibold">
+            <MailCheck className="h-5 w-5 shrink-0" />
+            <span>{notice}</span>
+          </div>
+        )}
+
+        <Card className="border border-[#C79A45]/30">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-[#C79A45]" />
+              <CardTitle className="font-serif">Cooperative Newsletter Broadcast</CardTitle>
+            </div>
+            <CardDescription>Transmit a manual message to all cooperative profiles in the active registry.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleBroadcast} className="space-y-4 text-[#16291F]">
+              <div>
+                <Label htmlFor="broadcast-subject">Subject</Label>
+                <Input
+                  id="broadcast-subject"
+                  required
+                  placeholder="e.g. Urgent Update on Legal Hearing Date"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="broadcast-body">Message Body</Label>
+                <Textarea
+                  id="broadcast-body"
+                  required
+                  placeholder="Draft your notice details here..."
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={5}
+                />
+              </div>
+
+              <Button type="submit" variant="brass" disabled={sending} className="gap-2">
+                <Send className="h-4 w-4" />
+                {sending ? 'Transmitting…' : 'Broadcast to all members'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Email Transparency Log */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <History className="h-5 w-5 text-[#7C9A5E]" />
+              <CardTitle className="font-serif text-xl">Transparency Log</CardTitle>
+            </div>
+            <CardDescription>Audit logs of broadcast distributions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {log.length === 0 ? (
+              <p className="text-[#7C9A5E] text-sm italic text-center py-8">No emails sent yet</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>When</TableHead>
+                    <TableHead>Recipient</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead className="text-center">Delivery Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {log.map((row) => (
+                    <TableRow key={row.id} className="hover:bg-[#e8dcc8]/20">
+                      <TableCell className="font-mono text-xs font-semibold py-4 text-[#16291f]">
+                        {new Date(row.created_at).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </TableCell>
+                      <TableCell className="py-4 font-semibold text-[#16291F]">{row.to}</TableCell>
+                      <TableCell className="py-4 font-semibold text-[#16291F]">{row.subject}</TableCell>
+                      <TableCell className="text-center py-4">
+                        <Badge variant="moss" className="capitalize">
+                          {row.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }

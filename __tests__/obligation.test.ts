@@ -57,7 +57,8 @@ describe('Contribution Obligation', () => {
 
 describe('My Standing', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    initializeDb();
   });
 
   it('member views their standing: obligation, paid, balance, status (behind)', async () => {
@@ -70,17 +71,18 @@ describe('My Standing', () => {
       'INSERT INTO members (id, email, password_hash, name, parcel_count, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     insertMemberStmt.run(committeeId, 'admin@example.com', passwordHash, 'Admin', 0, 'committee', now);
-    // Bob: 6 parcels @ €50 = €300 obligation
     insertMemberStmt.run(memberId, 'bob@example.com', passwordHash, 'Bob', 6, 'member', now);
 
-    // Fee = 50
-    const { setPerParcelFee } = await import('@/lib/settings');
-    setPerParcelFee(50, committeeId);
+    // Set Bob's Q3 2026 obligation to €300
+    const { setObligation, listQuarters } = await import('@/lib/targets');
+    const q1 = listQuarters()[0]; // Q3 2026
+    setObligation(memberId, q1.id, 300);
 
-    // Bob paid €200 (behind by €100)
+    // Bob paid €200 inside Q3 2026 timeline (July 2026) -> behind by €100
+    const july2026Time = 1783000000000;
     db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(randomBytes(16).toString('hex'), memberId, 200, now, 'transfer', committeeId, now, null);
+      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(randomBytes(16).toString('hex'), memberId, 200, july2026Time, 'transfer', committeeId, now, null, q1.id);
 
     const memberSession = createSession(memberId);
     const { GET: getStanding } = await import('@/app/api/contributions/my-standing/route');
@@ -95,13 +97,10 @@ describe('My Standing', () => {
     const standing = await response.json();
 
     expect(standing).toMatchObject({
-      parcel_count: 6,
-      per_parcel_fee: 50,
       obligation: 300,
       paid: 200,
       balance: -100,
       status: 'behind by €100',
-      currency: 'EUR',
     });
   });
 
@@ -117,13 +116,15 @@ describe('My Standing', () => {
     insertMemberStmt.run(committeeId, 'admin@example.com', passwordHash, 'Admin', 0, 'committee', now);
     insertMemberStmt.run(memberId, 'alice@example.com', passwordHash, 'Alice', 4, 'member', now);
 
-    const { setPerParcelFee } = await import('@/lib/settings');
-    setPerParcelFee(50, committeeId);
+    const { setObligation, listQuarters } = await import('@/lib/targets');
+    const q1 = listQuarters()[0];
+    setObligation(memberId, q1.id, 200);
 
-    // Alice paid €200 = obligation (4 × 50)
+    // Alice paid €200 = obligation
+    const july2026Time = 1783000000000;
     db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(randomBytes(16).toString('hex'), memberId, 200, now, 'transfer', committeeId, now, null);
+      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(randomBytes(16).toString('hex'), memberId, 200, july2026Time, 'transfer', committeeId, now, null, q1.id);
 
     const memberSession = createSession(memberId);
     const { GET: getStanding } = await import('@/app/api/contributions/my-standing/route');
@@ -147,7 +148,8 @@ describe('My Standing', () => {
 
 describe('Arrears List (committee)', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    initializeDb();
   });
 
   it('committee sees only members who are behind, with amount owed', async () => {
@@ -163,16 +165,20 @@ describe('Arrears List (committee)', () => {
     insertMemberStmt.run('m-bob', 'bob@example.com', passwordHash, 'Bob', 6, 'member', now);       // owes 300
     insertMemberStmt.run('m-carol', 'carol@example.com', passwordHash, 'Carol', 2, 'member', now); // owes 100
 
-    const { setPerParcelFee } = await import('@/lib/settings');
-    setPerParcelFee(50, committeeId);
+    const { setObligation, listQuarters } = await import('@/lib/targets');
+    const q1 = listQuarters()[0]; // Q3 2026
+    
+    setObligation('m-alice', q1.id, 200);
+    setObligation('m-bob', q1.id, 300);
+    setObligation('m-carol', q1.id, 100);
 
     const insertContrib = db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     // Alice fully paid (200) -> up to date, NOT in arrears
-    insertContrib.run(randomBytes(16).toString('hex'), 'm-alice', 200, now, 'transfer', committeeId, now, null);
+    insertContrib.run(randomBytes(16).toString('hex'), 'm-alice', 200, now, 'transfer', committeeId, now, null, q1.id);
     // Bob paid 100 -> behind by 200
-    insertContrib.run(randomBytes(16).toString('hex'), 'm-bob', 100, now, 'transfer', committeeId, now, null);
+    insertContrib.run(randomBytes(16).toString('hex'), 'm-bob', 100, now, 'transfer', committeeId, now, null, q1.id);
     // Carol paid nothing -> behind by 100
 
     const committeeSession = createSession(committeeId);

@@ -2,6 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Users, Plus, Trash2, Key, Layers, ArrowLeft, BadgeAlert, ShieldAlert } from 'lucide-react';
+
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/app/components/ui/table';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Select } from '@/app/components/ui/select';
+import { Badge } from '@/app/components/ui/badge';
+import { Label } from '@/app/components/ui/label';
 
 interface MemberRow {
   id: string;
@@ -82,109 +91,196 @@ export default function MembersAdminPage() {
     else setError((await res.json()).error || 'Failed to deactivate member');
   };
 
-  if (isLoading) return <div className="p-8 text-center">Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#16291F] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#C79A45] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[#F3ECDD] font-serif tracking-wider animate-pulse">Loading Member Roster...</p>
+        </div>
+      </div>
+    );
+  }
 
   const isOwner = myRole === 'owner';
 
   return (
-    <div className="min-h-screen bg-[#16291F] text-[#F3ECDD]">
-      <div className="max-w-5xl mx-auto p-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-1" style={{ fontFamily: 'var(--font-fraunces)' }}>
-              Members
-            </h1>
-            <p className="text-[#C79A45]">Roster, roles, and parcel holdings</p>
+    <div className="min-h-screen bg-[#16291F] pb-16">
+      <main className="max-w-5xl mx-auto p-4 md:p-8 space-y-8">
+        
+        {/* Navigation / Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#e8dcc8]/20 pb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="sm" onClick={() => router.push('/')} className="bg-[#0d1a13] text-[#F3ECDD] border-[#e8dcc8]/20 hover:bg-[#16291F]">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold font-serif text-[#F3ECDD]">Member Registry</h1>
+              <p className="text-[#7C9A5E] text-sm mt-0.5">Manage co-op profiles, permissions, roles, and parcel counts.</p>
+            </div>
           </div>
           {isOwner && (
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="px-4 py-2 bg-[#C79A45] text-[#16291F] rounded font-semibold hover:bg-[#b8894a]"
-            >
-              {showForm ? 'Cancel' : 'Add Member'}
-            </button>
+            <Button variant="brass" onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'Cancel' : 'Register Member'}
+            </Button>
           )}
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded bg-[#B5532E] text-[#F3ECDD] text-sm">{error}</div>
+          <div className="bg-[#B5532E]/10 border-l-4 border-[#B5532E] p-3 rounded text-sm text-[#B5532E] flex items-center gap-2">
+            <BadgeAlert className="h-4 w-4" /> {error}
+          </div>
         )}
 
+        {/* Register Member Form */}
         {isOwner && showForm && (
-          <form onSubmit={handleCreate} className="bg-[#1A3A2E] p-6 rounded mb-8 border border-[#C79A45] grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input required placeholder="Name" value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded" />
-            <input required type="email" placeholder="Email" value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded" />
-            <input required type="password" placeholder="Temporary password" value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded" />
-            <input type="number" min={0} placeholder="Parcels" value={form.parcel_count}
-              onChange={(e) => setForm({ ...form, parcel_count: Number(e.target.value) })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded" />
-            <select value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded">
-              <option value="member">Member</option>
-              <option value="committee">Committee</option>
-              <option value="owner">Owner</option>
-            </select>
-            <button type="submit" className="px-4 py-2 bg-[#7C9A5E] text-[#16291F] rounded font-semibold hover:bg-[#6b8950]">
-              Create
-            </button>
-          </form>
+          <Card className="border border-[#C79A45]/30">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-[#C79A45]" />
+                <CardTitle className="font-serif">Add Cooperative Profile</CardTitle>
+              </div>
+              <CardDescription>Setup coordinate handles, initial temporary login keys, and parcel counts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[#16291F]">
+                <div>
+                  <Label htmlFor="member-name">Full Name</Label>
+                  <Input
+                    id="member-name"
+                    required
+                    placeholder="Alice Cooper"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="member-email">Email Coordinate</Label>
+                  <Input
+                    id="member-email"
+                    required
+                    type="email"
+                    placeholder="alice@domain.com"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="member-password">Temporary Password</Label>
+                  <Input
+                    id="member-password"
+                    required
+                    type="password"
+                    placeholder="Temporary login key"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="member-parcels">Assigned Parcels</Label>
+                  <Input
+                    id="member-parcels"
+                    type="number"
+                    min={0}
+                    placeholder="Number of parcels"
+                    value={form.parcel_count}
+                    onChange={(e) => setForm({ ...form, parcel_count: Number(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="member-role">Registry Permission Role</Label>
+                  <Select
+                    id="member-role"
+                    value={form.role}
+                    onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  >
+                    <option value="member">Member</option>
+                    <option value="committee">Committee</option>
+                    <option value="owner">Owner</option>
+                  </Select>
+                </div>
+
+                <div className="md:col-span-2 pt-2">
+                  <Button type="submit" variant="moss" className="w-full md:w-auto">
+                    Create Profile
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         )}
 
-        <div className="bg-[#1A3A2E] rounded border border-[#C79A45]/50 overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-[#0d1a13] border-b border-[#C79A45]/50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-[#C79A45]">Name</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-[#C79A45]">Email</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-[#C79A45]">Parcels</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-[#C79A45]">Role</th>
-                {isOwner && <th className="px-4 py-3 text-center text-sm font-semibold text-[#C79A45]">Actions</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#C79A45]/20">
-              {members.map((m) => (
-                <tr key={m.id} className="hover:bg-[#2A4A3E]">
-                  <td className="px-4 py-3 font-semibold">{m.name || '—'}</td>
-                  <td className="px-4 py-3 text-sm">{m.email}</td>
-                  <td className="px-4 py-3 text-right font-figure">{m.parcel_count}</td>
-                  <td className="px-4 py-3">
-                    {isOwner ? (
-                      <select
-                        value={m.role}
-                        onChange={(e) => handleRoleChange(m.id, e.target.value)}
-                        className="px-2 py-1 bg-[#16291F] border border-[#C79A45] rounded text-sm"
-                      >
-                        <option value="member">Member</option>
-                        <option value="committee">Committee</option>
-                        <option value="owner">Owner</option>
-                      </select>
-                    ) : (
-                      <span className="capitalize">{m.role}</span>
+        {/* Member Roster List */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-[#7C9A5E]" />
+              <CardTitle className="font-serif text-xl">Roster Registry</CardTitle>
+            </div>
+            <CardDescription>Consolidated listing of cooperative members and permission scopes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email Coordinates</TableHead>
+                  <TableHead className="text-right">Parcels Held</TableHead>
+                  <TableHead>Permission Role</TableHead>
+                  {isOwner && <TableHead className="text-center">Deactivation</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((m) => (
+                  <TableRow key={m.id} className="hover:bg-[#e8dcc8]/20">
+                    <TableCell className="py-4 font-semibold text-[#16291F]">{m.name || '—'}</TableCell>
+                    <TableCell className="py-4 text-xs font-mono text-[#7C9A5E]">{m.email}</TableCell>
+                    <TableCell className="text-right font-mono font-bold text-base text-[#C79A45] py-4">
+                      {m.parcel_count}
+                    </TableCell>
+                    <TableCell className="py-4 text-[#16291F]">
+                      {isOwner ? (
+                        <div className="max-w-[150px]">
+                          <Select
+                            value={m.role}
+                            onChange={(e) => handleRoleChange(m.id, e.target.value)}
+                            className="h-8 py-1 text-xs"
+                          >
+                            <option value="member">Member</option>
+                            <option value="committee">Committee</option>
+                            <option value="owner">Owner</option>
+                          </Select>
+                        </div>
+                      ) : (
+                        <Badge variant="moss" className="capitalize text-xs font-bold">
+                          {m.role}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    {isOwner && (
+                      <TableCell className="text-center py-4">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeactivate(m.id, m.name)}
+                          className="h-7 px-2.5 text-xs font-bold"
+                        >
+                          Deactivate
+                        </Button>
+                      </TableCell>
                     )}
-                  </td>
-                  {isOwner && (
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => handleDeactivate(m.id, m.name)}
-                        className="px-3 py-1 bg-[#B5532E] text-[#F3ECDD] rounded text-sm font-semibold hover:bg-[#9d4520]"
-                      >
-                        Deactivate
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+      </main>
     </div>
   );
 }

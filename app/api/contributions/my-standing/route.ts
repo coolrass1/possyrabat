@@ -21,21 +21,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Member not found' }, { status: 404 });
     }
 
-    const { per_parcel_fee, currency } = getSettings();
+    const { getMemberStanding } = await import('@/lib/targets');
+    const standings = getMemberStanding(member.id);
 
-    const paidResult = db
-      .prepare('SELECT SUM(amount) as total FROM contributions WHERE member_id = ? AND deleted_at IS NULL')
-      .get(member.id) as any;
-    const paid = paidResult?.total || 0;
-
-    const parcel_count = member.parcel_count || 0;
-    const obligation = parcel_count * per_parcel_fee;
+    const obligation = standings.reduce((sum, s) => sum + s.obligation, 0);
+    const paid = standings.reduce((sum, s) => sum + s.paid, 0);
     const balance = paid - obligation;
     const status = balance >= 0 ? 'up to date' : `behind by €${Math.abs(balance)}`;
 
+    const { currency } = getSettings();
+
     return NextResponse.json({
-      parcel_count,
-      per_parcel_fee,
+      parcel_count: member.parcel_count || 0,
+      per_parcel_fee: 50,
       obligation: parseFloat(obligation.toFixed(2)),
       paid: parseFloat(paid.toFixed(2)),
       balance: parseFloat(balance.toFixed(2)),

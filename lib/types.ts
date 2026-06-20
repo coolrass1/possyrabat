@@ -213,3 +213,57 @@ export interface Vote {
   choice: string;
   created_at: number;
 }
+
+export interface TargetQuarter {
+  id: string;
+  name: string;
+  start_date: number;
+  end_date: number;
+  target_amount: number;
+  created_at: number;
+}
+
+export interface TargetMonth {
+  id: string;
+  quarter_id: string;
+  name: string;
+  target_amount: number;
+  created_at: number;
+}
+
+export interface MemberQuarterObligation {
+  id: string;
+  member_id: string;
+  quarter_id: string;
+  amount_due: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface TargetPayment {
+  id: string;
+  member_id: string;
+  quarter_id: string | null;
+  month_id: string | null;
+  amount: number;
+  date_paid: number;
+  method: string;
+  notes: string | null;
+  recorded_by: string;
+  created_at: number;
+}
+
+export interface Contribution {
+  id: string;
+  member_id: string;
+  amount: number;
+  date: number;
+  method: string | null;
+  notes: string | null;
+  recorded_by: string;
+  created_at: number;
+  deleted_at: number | null;
+  quarter_id: string | null;
+  month_id: string | null;
+}
+

@@ -47,10 +47,14 @@ export async function POST(request: NextRequest) {
     const contribId = randomBytes(16).toString('hex');
     const now = Date.now();
 
+    // Auto-match quarter based on date
+    const targetQ = db.prepare('SELECT id FROM target_quarters WHERE ? >= start_date AND ? <= end_date LIMIT 1').get(date, date) as { id: string } | undefined;
+    const quarter_id = targetQ ? targetQ.id : null;
+
     const insertStmt = db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    insertStmt.run(contribId, member_id, amount, date, method || null, notes || null, member.id, now);
+    insertStmt.run(contribId, member_id, amount, date, method || null, notes || null, member.id, now, quarter_id);
 
     // Log to audit trail
     await createAuditLog({

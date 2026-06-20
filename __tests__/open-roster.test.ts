@@ -9,7 +9,8 @@ describe('Open Roster & Contribution Transparency', () => {
   });
 
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    initializeDb();
   });
 
   it('member views open roster with obligation/paid/status', async () => {
@@ -17,7 +18,6 @@ describe('Open Roster & Contribution Transparency', () => {
     const passwordHash = await hashPassword('test123');
     const committeeId = 'committee-1';
     const now = Date.now();
-    const perParcelFee = 50; // €50 per parcel
 
     const insertMemberStmt = db.prepare(
       'INSERT INTO members (id, email, password_hash, name, parcel_count, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -25,34 +25,45 @@ describe('Open Roster & Contribution Transparency', () => {
     
     insertMemberStmt.run(committeeId, 'admin@example.com', passwordHash, 'Admin', 0, 'committee', now);
     
-    // Alice: 4 parcels, obligation €200, paid €200 (up to date)
+    // Alice: 4 parcels, target obligation €200, paid €200 (up to date)
     insertMemberStmt.run('member-alice', 'alice@example.com', passwordHash, 'Alice', 4, 'member', now);
     
-    // Bob: 6 parcels, obligation €300, paid €200 (behind by €100)
+    // Bob: 6 parcels, target obligation €300, paid €200 (behind by €100)
     insertMemberStmt.run('member-bob', 'bob@example.com', passwordHash, 'Bob', 6, 'member', now);
     
-    // Charlie: 3 parcels, obligation €150, paid €150 (up to date)
+    // Charlie: 3 parcels, target obligation €150, paid €150 (up to date)
     insertMemberStmt.run('member-charlie', 'charlie@example.com', passwordHash, 'Charlie', 3, 'member', now);
+
+    // Get active quarter Q3 2026
+    const q1 = db.prepare('SELECT id FROM target_quarters ORDER BY start_date ASC').get() as { id: string };
+
+    // Set target obligations
+    const insertObligation = db.prepare(
+      'INSERT INTO member_quarter_obligations (id, member_id, quarter_id, amount_due, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    insertObligation.run(randomBytes(16).toString('hex'), 'member-alice', q1.id, 200, now, now);
+    insertObligation.run(randomBytes(16).toString('hex'), 'member-bob', q1.id, 300, now, now);
+    insertObligation.run(randomBytes(16).toString('hex'), 'member-charlie', q1.id, 150, now, now);
 
     // Record contributions
     const insertContribStmt = db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     
     // Alice: €200
-    insertContribStmt.run(randomBytes(16).toString('hex'), 'member-alice', 200, now, 'transfer', committeeId, now, null);
+    insertContribStmt.run(randomBytes(16).toString('hex'), 'member-alice', 200, now, 'transfer', committeeId, now, null, q1.id);
     
     // Bob: €200 (owes €100)
-    insertContribStmt.run(randomBytes(16).toString('hex'), 'member-bob', 200, now, 'transfer', committeeId, now, null);
+    insertContribStmt.run(randomBytes(16).toString('hex'), 'member-bob', 200, now, 'transfer', committeeId, now, null, q1.id);
     
     // Charlie: €150
-    insertContribStmt.run(randomBytes(16).toString('hex'), 'member-charlie', 150, now, 'transfer', committeeId, now, null);
+    insertContribStmt.run(randomBytes(16).toString('hex'), 'member-charlie', 150, now, 'transfer', committeeId, now, null, q1.id);
 
     // Act: member views roster
     const memberSession = createSession('member-alice');
     const { GET: getRoster } = await import('@/app/api/contributions/open-roster/route');
     const request = {
-      url: `http://localhost:3000/api/contributions/open-roster?fee=${perParcelFee}&page=1&limit=10`,
+      url: `http://localhost:3000/api/contributions/open-roster?page=1&limit=10`,
       cookies: {
         get: (name: string) => (name === 'session_id' ? { value: memberSession.id } : undefined),
       },
@@ -108,10 +119,11 @@ describe('Open Roster & Contribution Transparency', () => {
 
 describe('Open Roster scope & settings fee', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    initializeDb();
   });
 
-  it('includes committee members who hold parcels and uses the settings fee when none passed', async () => {
+  it('includes committee members who hold parcels and computes correct obligations', async () => {
     const passwordHash = await hashPassword('test123');
     const now = Date.now();
 
@@ -125,8 +137,17 @@ describe('Open Roster scope & settings fee', () => {
     // A pure admin with 0 parcels (should NOT appear — owes nothing, holds nothing)
     insertMemberStmt.run('admin0', 'admin@example.com', passwordHash, 'Admin', 0, 'committee', now);
 
-    const { setPerParcelFee } = await import('@/lib/settings');
-    setPerParcelFee(50, 'admin0');
+    const q1 = db.prepare('SELECT id FROM target_quarters ORDER BY start_date ASC').get() as { id: string };
+
+    // Set obligations
+    db.prepare(`
+      INSERT INTO member_quarter_obligations (id, member_id, quarter_id, amount_due, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(randomBytes(16).toString('hex'), 'c-holder', q1.id, 250, now, now);
+    db.prepare(`
+      INSERT INTO member_quarter_obligations (id, member_id, quarter_id, amount_due, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(randomBytes(16).toString('hex'), 'm-reg', q1.id, 100, now, now);
 
     const session = createSession('m-reg');
     const { GET: getRoster } = await import('@/app/api/contributions/open-roster/route');
@@ -150,7 +171,7 @@ describe('Open Roster scope & settings fee', () => {
     expect(chair).toMatchObject({
       name: 'Chair',
       parcel_count: 5,
-      obligation: 250, // 5 × 50 (settings fee)
+      obligation: 250,
     });
   });
 });

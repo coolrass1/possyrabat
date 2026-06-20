@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Inter, Spline_Sans_Mono } from "next/font/google";
 import "./globals.css";
 import Nav from "./components/Nav";
+import { LanguageProvider } from "./components/LanguageProvider";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -38,8 +39,10 @@ export default function RootLayout({
       className={`${fraunces.variable} ${inter.variable} ${splineMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#16291F] text-[#F3ECDD]">
-        <Nav />
-        <div className="flex-1">{children}</div>
+        <LanguageProvider>
+          <Nav />
+          <div className="flex-1">{children}</div>
+        </LanguageProvider>
       </body>
     </html>
   );

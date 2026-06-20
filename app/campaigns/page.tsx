@@ -2,6 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Target, PlusCircle, Flame, Calendar, ArrowLeft, Coins, AlertCircle, Percent } from 'lucide-react';
+
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Select } from '@/app/components/ui/select';
+import { Badge } from '@/app/components/ui/badge';
+import { Progress } from '@/app/components/ui/progress';
+import { Label } from '@/app/components/ui/label';
 
 interface CampaignRow {
   id: string;
@@ -21,12 +30,20 @@ const AIM_LABELS: Record<string, string> = {
   general: 'General',
 };
 
+const AIM_BADGE_VARIANTS: Record<string, 'destructive' | 'brass' | 'moss' | 'secondary'> = {
+  court_case: 'destructive',
+  construction: 'brass',
+  security: 'moss',
+  general: 'secondary',
+};
+
 export default function CampaignsPage() {
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [role, setRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  
   const [form, setForm] = useState({
     name: '',
     purpose: '',
@@ -86,92 +103,186 @@ export default function CampaignsPage() {
     if (res.ok) await fetchCampaigns();
   };
 
-  if (isLoading) return <div className="p-8 text-center">Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#16291F] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-[#C79A45] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[#F3ECDD] font-serif tracking-wider animate-pulse">Loading Campaigns Ledger...</p>
+        </div>
+      </div>
+    );
+  }
 
   const isCommittee = role === 'committee' || role === 'owner';
 
   return (
-    <div className="min-h-screen bg-[#16291F] text-[#F3ECDD]">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-4xl font-bold mb-1" style={{ fontFamily: 'var(--font-fraunces)' }}>Campaigns</h1>
-            <p className="text-[#C79A45]">Time-bound funding pushes for our shared aims</p>
+    <div className="min-h-screen bg-[#16291F] pb-16">
+      <main className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
+        
+        {/* Navigation / Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#e8dcc8]/20 pb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="sm" onClick={() => router.push('/')} className="bg-[#0d1a13] text-[#F3ECDD] border-[#e8dcc8]/20 hover:bg-[#16291F]">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold font-serif text-[#F3ECDD]">Funding Campaigns</h1>
+              <p className="text-[#7C9A5E] text-sm mt-0.5">Time-bound funding pushes designated for specific co-op aims.</p>
+            </div>
           </div>
           {isCommittee && (
-            <button onClick={() => setShowForm(!showForm)}
-              className="px-4 py-2 bg-[#C79A45] text-[#16291F] rounded font-semibold hover:bg-[#b8894a]">
-              {showForm ? 'Cancel' : 'New Campaign'}
-            </button>
+            <Button variant="brass" onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'Cancel' : 'Create Campaign'}
+            </Button>
           )}
         </div>
 
+        {/* Create Campaign Form */}
         {isCommittee && showForm && (
-          <form onSubmit={handleCreate} className="bg-[#1A3A2E] p-6 rounded mb-8 border border-[#C79A45] grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input required placeholder="Name" value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded md:col-span-2" />
-            <input placeholder="Purpose" value={form.purpose}
-              onChange={(e) => setForm({ ...form, purpose: e.target.value })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded md:col-span-2" />
-            <select value={form.aim} onChange={(e) => setForm({ ...form, aim: e.target.value })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded">
-              <option value="court_case">Court Case</option>
-              <option value="construction">Construction</option>
-              <option value="security">Security</option>
-              <option value="general">General</option>
-            </select>
-            <input type="number" min={1} placeholder="Target (€)" value={form.target_amount}
-              onChange={(e) => setForm({ ...form, target_amount: Number(e.target.value) })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded" />
-            <input type="date" value={form.deadline}
-              onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-              className="px-3 py-2 bg-[#16291F] border border-[#C79A45] rounded" />
-            <button type="submit" className="px-4 py-2 bg-[#7C9A5E] text-[#16291F] rounded font-semibold md:col-span-2">Create</button>
-          </form>
+          <Card className="border border-[#C79A45]/30">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-[#C79A45]" />
+                <CardTitle className="font-serif">New Funding Campaign</CardTitle>
+              </div>
+              <CardDescription>Setup specific fundraising milestones and deadlines</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[#16291F]">
+                <div className="md:col-span-2">
+                  <Label htmlFor="campaign-name">Campaign Name</Label>
+                  <Input
+                    id="campaign-name"
+                    required
+                    placeholder="e.g. Legal defense retainer fund, fencing materials..."
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <Label htmlFor="campaign-purpose">Campaign Purpose</Label>
+                  <Input
+                    id="campaign-purpose"
+                    placeholder="Brief plain-language summary of what funds will buy..."
+                    value={form.purpose}
+                    onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="campaign-aim">Designated Aim</Label>
+                  <Select
+                    id="campaign-aim"
+                    value={form.aim}
+                    onChange={(e) => setForm({ ...form, aim: e.target.value })}
+                  >
+                    <option value="court_case">Court Case</option>
+                    <option value="construction">Construction</option>
+                    <option value="security">Security</option>
+                    <option value="general">General</option>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="campaign-target">Target Amount (€)</Label>
+                  <Input
+                    id="campaign-target"
+                    type="number"
+                    min={1}
+                    value={form.target_amount}
+                    onChange={(e) => setForm({ ...form, target_amount: Number(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="campaign-deadline">Campaign Deadline</Label>
+                  <Input
+                    id="campaign-deadline"
+                    type="date"
+                    value={form.deadline}
+                    onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+                  />
+                </div>
+
+                <div className="md:col-span-2 pt-2">
+                  <Button type="submit" variant="moss" className="w-full md:w-auto">
+                    Create Campaign
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         )}
 
-        <div className="space-y-4">
+        {/* Campaigns Listing */}
+        <div className="space-y-6">
           {campaigns.length === 0 ? (
-            <div className="text-center py-12 bg-[#1A3A2E] rounded border border-[#7C9A5E]/30">
-              <p className="text-[#C79A45]">No campaigns yet</p>
-            </div>
+            <Card className="text-center p-12 bg-[#F3ECDD] border border-[#7C9A5E]/20">
+              <CardContent className="space-y-3">
+                <Flame className="h-10 w-10 mx-auto text-[#7C9A5E]" />
+                <h3 className="text-lg font-bold font-serif text-[#16291F]">No Active Campaigns</h3>
+                <p className="text-[#7C9A5E] text-xs max-w-xs mx-auto">
+                  There are no current funding campaigns active. Pushes will appear here when posted by the committee.
+                </p>
+              </CardContent>
+            </Card>
           ) : (
             campaigns.map((c) => (
-              <div key={c.id} className="bg-[#1A3A2E] p-6 rounded border border-[#C79A45]/50">
-                <div className="flex items-start justify-between mb-2">
+              <Card key={c.id} className="border border-[#e8dcc8]/60 shadow-md">
+                <CardHeader className="pb-2 flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-[#e8dcc8]/20">
                   <div>
-                    <h2 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-fraunces)' }}>{c.name}</h2>
-                    <p className="text-sm text-[#C79A45]">{AIM_LABELS[c.aim]}{c.deadline ? ` · by ${new Date(c.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <CardTitle className="text-2xl font-serif text-[#16291F]">{c.name}</CardTitle>
+                      <Badge variant={AIM_BADGE_VARIANTS[c.aim] || 'secondary'} className="text-[10px] uppercase font-bold">
+                        {AIM_LABELS[c.aim]}
+                      </Badge>
+                    </div>
+                    {c.deadline && (
+                      <CardDescription className="text-xs text-[#7C9A5E] mt-1.5 flex items-center gap-1 font-mono">
+                        <Calendar className="h-3.5 w-3.5" /> deadline by {new Date(c.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </CardDescription>
+                    )}
                   </div>
-                  <span className={`px-3 py-1 rounded text-xs font-semibold capitalize ${
-                    c.status === 'active' ? 'bg-[#7C9A5E] text-[#16291F]' : c.status === 'completed' ? 'bg-[#C79A45] text-[#16291F]' : 'bg-[#B5532E] text-[#F3ECDD]'
-                  }`}>{c.status}</span>
-                </div>
-                {c.purpose && <p className="text-[#F3ECDD]/80 mb-4">{c.purpose}</p>}
-
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="font-figure">€{c.progress.raised.toLocaleString()} raised</span>
-                  <span className="text-[#C79A45] font-figure">of €{c.progress.target.toLocaleString()}</span>
-                </div>
-                <div className="w-full bg-[#16291F] rounded h-4 overflow-hidden">
-                  <div className="h-full bg-[#C79A45] transition-all" style={{ width: `${Math.min(100, c.progress.percent)}%` }} />
-                </div>
-                <p className="text-right text-xs text-[#C79A45] mt-1 font-figure">{c.progress.percent}%</p>
-
-                {isCommittee && c.status === 'active' && (
-                  <div className="flex gap-2 mt-4">
-                    <button onClick={() => setStatus(c.id, 'completed')}
-                      className="px-3 py-1.5 bg-[#7C9A5E] text-[#16291F] rounded text-sm font-semibold">Mark completed</button>
-                    <button onClick={() => setStatus(c.id, 'cancelled')}
-                      className="px-3 py-1.5 bg-[#B5532E] text-[#F3ECDD] rounded text-sm font-semibold">Cancel</button>
+                  <div>
+                    <Badge variant={c.status === 'active' ? 'moss' : c.status === 'completed' ? 'brass' : 'destructive'} className="text-xs font-bold px-3 py-0.5">
+                      {c.status}
+                    </Badge>
                   </div>
-                )}
-              </div>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-4">
+                  {c.purpose && <p className="text-sm text-[#16291F] leading-relaxed">{c.purpose}</p>}
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-mono text-[#7C9A5E] font-semibold flex items-center gap-1">
+                        <Coins className="h-3.5 w-3.5" /> €{c.progress.raised.toLocaleString()} raised
+                      </span>
+                      <span className="font-mono text-[#16291F] font-bold">of €{c.progress.target.toLocaleString()}</span>
+                    </div>
+                    <Progress value={c.progress.percent} />
+                    <p className="text-right text-[10px] font-mono font-bold text-[#C79A45] mt-1 flex items-center justify-end gap-1">
+                      <Percent className="h-3 w-3" /> {c.progress.percent}% achieved
+                    </p>
+                  </div>
+
+                  {isCommittee && c.status === 'active' && (
+                    <div className="flex gap-2 pt-2 border-t border-[#e8dcc8]/20">
+                      <Button variant="moss" size="sm" onClick={() => setStatus(c.id, 'completed')}>
+                        Mark Completed
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => setStatus(c.id, 'cancelled')}>
+                        Cancel Campaign
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             ))
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

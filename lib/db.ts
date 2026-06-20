@@ -327,6 +327,26 @@ export function initializeDb() {
       FOREIGN KEY (quarter_id) REFERENCES target_quarters(id),
       UNIQUE(member_id, quarter_id)
     );
+
+    CREATE TABLE IF NOT EXISTS land (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      location TEXT,
+      area REAL NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS land_ownership (
+      id TEXT PRIMARY KEY,
+      member_id TEXT NOT NULL,
+      land_id TEXT NOT NULL,
+      shares INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (member_id) REFERENCES members(id),
+      FOREIGN KEY (land_id) REFERENCES land(id),
+      UNIQUE(member_id, land_id)
+    );
   `);
 
   // Lightweight migrations for columns added after a table's first creation.

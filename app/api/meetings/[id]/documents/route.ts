@@ -33,37 +33,70 @@ export async function POST(
   }
 
   const { id } = await params;
-  const formData = await request.formData();
-  const file = formData.get('file') as File | null;
-  const kindRaw = String(formData.get('kind') || 'other');
-  const kind: MeetingDocument['kind'] = ['minutes', 'report', 'other'].includes(kindRaw)
-    ? (kindRaw as MeetingDocument['kind'])
-    : 'other';
-  const notify = String(formData.get('notify') || '') === 'true';
-
-  if (!file) {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-  }
 
   try {
-    const fileContent = Buffer.from(await file.arrayBuffer());
-    const document = await addMeetingDocument(
-      { meeting_id: id, filename: file.name, fileContent, kind },
-      member.id
-    );
+    // Check if this is JSON (metadata-only) or FormData (file upload)
+    const contentType = request.headers.get('content-type') || '';
 
-    if (notify) {
-      const meeting = await getMeeting(id);
-      const title = meeting?.title || 'a meeting';
-      await broadcastToMembers({
-        subject: `New ${kind}: ${title}`,
-        body: `A new ${kind} ("${document.filename}") was added to "${title}". It's available on the meeting page.`,
-      });
+    if (contentType.includes('application/json')) {
+      // Metadata-only (no file upload)
+      const { filename } = await request.json();
+
+      if (!filename) {
+        return NextResponse.json({ error: 'Filename is required' }, { status: 400 });
+      }
+
+      // Create document metadata without file
+      const now = Date.now();
+      const db = await import('@/lib/db').then(m => m.default);
+      const { randomUUID } = await import('crypto');
+      const docId = randomUUID();
+
+      db.prepare(`
+        INSERT INTO meeting_documents (id, meeting_id, filename, storage_path, uploaded_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(docId, id, filename, 'metadata-only', member.id, now);
+
+      return NextResponse.json({
+        id: docId,
+        meeting_id: id,
+        filename,
+        storage_path: 'metadata-only',
+        uploaded_by: member.id,
+        created_at: now,
+      }, { status: 201 });
+    } else {
+      // File upload (existing behavior)
+      const formData = await request.formData();
+      const file = formData.get('file') as File | null;
+      const kindRaw = String(formData.get('kind') || 'other');
+      const kind: MeetingDocument['kind'] = ['minutes', 'report', 'other'].includes(kindRaw)
+        ? (kindRaw as MeetingDocument['kind'])
+        : 'other';
+      const notify = String(formData.get('notify') || '') === 'true';
+
+      if (!file) {
+        return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      }
+
+      const fileContent = Buffer.from(await file.arrayBuffer());
+      const document = await addMeetingDocument(
+        { meeting_id: id, filename: file.name, fileContent, kind },
+        member.id
+      );
+
+      if (notify) {
+        const meeting = await getMeeting(id);
+        const title = meeting?.title || 'a meeting';
+        await broadcastToMembers({
+          subject: `New ${kind}: ${title}`,
+          body: `A new ${kind} ("${document.filename}") was added to "${title}". It's available on the meeting page.`,
+        });
+      }
+
+      return NextResponse.json(document, { status: 201 });
     }
-
-    return NextResponse.json(document, { status: 201 });
   } catch (error: any) {
-    // Validation failures (type/size) surface as 400
     return NextResponse.json({ error: error?.message || 'Upload failed' }, { status: 400 });
   }
 }

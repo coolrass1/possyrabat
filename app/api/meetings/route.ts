@@ -39,23 +39,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden - committee only' }, { status: 403 });
     }
 
-    const { date, title, notes, attendees } = await request.json();
+    const { date, title, location, agenda, description } = await request.json();
 
-    if (!date || !title || !attendees) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!date || !title) {
+      return NextResponse.json({ error: 'Title and date are required' }, { status: 400 });
     }
 
     const meeting = await createMeeting({
       date,
       title,
-      notes: notes || null,
-      attendees,
+      location: location || null,
+      agenda: agenda || null,
+      description: description || null,
       created_by: member.id,
     });
 
     return NextResponse.json(meeting, { status: 201 });
-  } catch (error) {
-    console.error('Meeting creation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Meeting creation error:', error?.message || error);
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }

@@ -83,6 +83,9 @@ export default function ContributionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'my-standing' | 'roster'>('my-standing');
 
+  // Format a monetary amount as whole euros (rounded, with thousands separators)
+  const eur = (n: number) => Math.round(n).toLocaleString();
+
   // Payment recording form state (committee/owner only)
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -288,13 +291,13 @@ export default function ContributionsPage() {
                   <div>
                     <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.raisedContributions')}</span>
                     <p className="text-3xl font-black text-[#16291F] font-figure">
-                      €{overview.globalRaised.toLocaleString()}
+                      €{eur(overview.globalRaised)}
                     </p>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.coopMilestone')}</span>
                     <p className="text-xl font-bold text-[#C79A45] font-figure">
-                      {t('home.ofGoal').replace('{goal}', overview.globalTarget.toLocaleString())}
+                      {t('home.ofGoal').replace('{goal}', eur(overview.globalTarget))}
                     </p>
                   </div>
                 </div>
@@ -328,13 +331,13 @@ export default function ContributionsPage() {
                     <div>
                       <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.quarterRaised')}</span>
                       <p className="text-3xl font-black text-[#16291F] font-figure">
-                        €{overview.activeQuarter.raised.toLocaleString()}
+                        €{eur(overview.activeQuarter.raised)}
                       </p>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.quarterGoal')}</span>
                       <p className="text-xl font-bold text-[#7C9A5E] font-figure">
-                        {t('home.ofGoal').replace('{goal}', overview.activeQuarter.target_amount.toLocaleString())}
+                        {t('home.ofGoal').replace('{goal}', eur(overview.activeQuarter.target_amount))}
                       </p>
                     </div>
                   </div>
@@ -400,7 +403,7 @@ export default function ContributionsPage() {
                             {s.status === 'up_to_date' ? t('contributions.statusUpToDate') : t('contributions.statusBehind')}
                           </Badge>
                           <span className={`text-sm font-bold font-mono ${s.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
-                            {s.balance > 0 ? `€${s.balance.toLocaleString()}` : s.balance < 0 ? `+€${Math.abs(s.balance).toLocaleString()}` : '€0'}
+                            {s.balance > 0 ? `€${eur(s.balance)}` : s.balance < 0 ? `+€${eur(Math.abs(s.balance))}` : '€0'}
                           </span>
                         </div>
                       </div>
@@ -408,16 +411,16 @@ export default function ContributionsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-center sm:text-left">
                         <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
                           <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.obligationAmount')}</span>
-                          <span className="text-base font-black text-[#16291F] font-figure">€{s.obligation.toLocaleString()}</span>
+                          <span className="text-base font-black text-[#16291F] font-figure">€{eur(s.obligation)}</span>
                         </div>
                         <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
                           <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.paidStandings')}</span>
-                          <span className="text-base font-black text-[#C79A45] font-figure">€{s.paid.toLocaleString()}</span>
+                          <span className="text-base font-black text-[#C79A45] font-figure">€{eur(s.paid)}</span>
                         </div>
                         <div className="bg-[#e8dcc8]/30 p-3 rounded-lg flex flex-col justify-center">
                           <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.discrepancy')}</span>
                           <span className={`text-base font-bold font-mono ${s.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
-                            {s.balance > 0 ? `€${s.balance.toLocaleString()}` : s.balance < 0 ? `+€${Math.abs(s.balance).toLocaleString()}` : '€0'}
+                            {s.balance > 0 ? `€${eur(s.balance)}` : s.balance < 0 ? `+€${eur(Math.abs(s.balance))}` : '€0'}
                           </span>
                         </div>
                       </div>
@@ -444,7 +447,7 @@ export default function ContributionsPage() {
                                       {new Date(p.date_paid).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell className="text-right font-mono font-bold text-[#C79A45] py-2">
-                                      €{p.amount.toLocaleString()}
+                                      €{eur(p.amount)}
                                     </TableCell>
                                     <TableCell className="capitalize py-2 text-[#16291F]">
                                       {getMethodLabel(p.method)}
@@ -529,10 +532,10 @@ export default function ContributionsPage() {
                             <div className="text-[10px] text-[#7C9A5E] font-mono font-medium">{entry.email}</div>
                           </TableCell>
                           <TableCell className="text-right py-3 font-mono font-semibold">{entry.parcel_count} {t('contributions.parcelsSuffix')}</TableCell>
-                          <TableCell className="text-right py-3 font-mono">€{entry.obligation.toLocaleString()}</TableCell>
-                          <TableCell className="text-right py-3 font-mono font-bold text-[#C79A45]">€{entry.paid.toLocaleString()}</TableCell>
+                          <TableCell className="text-right py-3 font-mono">€{eur(entry.obligation)}</TableCell>
+                          <TableCell className="text-right py-3 font-mono font-bold text-[#C79A45]">€{eur(entry.paid)}</TableCell>
                           <TableCell className={`text-right py-3 font-mono font-semibold ${entry.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
-                            {entry.balance > 0 ? `€${entry.balance.toLocaleString()}` : entry.balance < 0 ? `+€${Math.abs(entry.balance).toLocaleString()}` : '€0'}
+                            {entry.balance > 0 ? `€${eur(entry.balance)}` : entry.balance < 0 ? `+€${eur(Math.abs(entry.balance))}` : '€0'}
                           </TableCell>
                           <TableCell className="py-3">
                             <Badge variant={entry.status === 'up to date' ? 'moss' : 'clay'} className="font-bold text-[10px]">

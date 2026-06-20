@@ -149,6 +149,9 @@ export default function CotisationsPage() {
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Format a monetary amount as whole euros (rounded, with thousands separators)
+  const eur = (n: number) => Math.round(n).toLocaleString();
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -410,13 +413,13 @@ export default function CotisationsPage() {
                   <div>
                     <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">Raised Contributions</span>
                     <p className="text-3xl font-black text-[#16291F] font-figure">
-                      €{overview.globalRaised.toLocaleString()}
+                      €{eur(overview.globalRaised)}
                     </p>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">Co-op Milestone</span>
                     <p className="text-xl font-bold text-[#C79A45] font-figure">
-                      of €{overview.globalTarget.toLocaleString()}
+                      of €{eur(overview.globalTarget)}
                     </p>
                   </div>
                 </div>
@@ -450,13 +453,13 @@ export default function CotisationsPage() {
                     <div>
                       <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">Quarter Raised</span>
                       <p className="text-3xl font-black text-[#16291F] font-figure">
-                        €{overview.activeQuarter.raised.toLocaleString()}
+                        €{eur(overview.activeQuarter.raised)}
                       </p>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">Quarter Goal</span>
                       <p className="text-xl font-bold text-[#7C9A5E] font-figure">
-                        of €{overview.activeQuarter.target_amount.toLocaleString()}
+                        of €{eur(overview.activeQuarter.target_amount)}
                       </p>
                     </div>
                   </div>
@@ -496,8 +499,8 @@ export default function CotisationsPage() {
                         <Badge variant={s.status === 'up_to_date' ? 'moss' : 'clay'} className="font-bold">
                           {s.status === 'up_to_date' ? 'Up to date' : 'In arrears'}
                         </Badge>
-                        <span className={`text-sm font-bold font-mono ${s.balance >= 0 ? 'text-[#7C9A5E]' : 'text-[#B5532E]'}`}>
-                          {s.balance >= 0 ? `+€${s.balance.toLocaleString()}` : `-€${Math.abs(s.balance).toLocaleString()}`}
+                        <span className={`text-sm font-bold font-mono ${s.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
+                          {s.balance > 0 ? `€${eur(s.balance)}` : s.balance < 0 ? `+€${eur(Math.abs(s.balance))}` : '€0'}
                         </span>
                       </div>
                     </div>
@@ -505,16 +508,16 @@ export default function CotisationsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-center sm:text-left">
                       <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
                         <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">Assigned Obligation</span>
-                        <span className="text-base font-black text-[#16291F] font-figure">€{s.obligation.toLocaleString()}</span>
+                        <span className="text-base font-black text-[#16291F] font-figure">€{eur(s.obligation)}</span>
                       </div>
                       <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
                         <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">Paid Standings</span>
-                        <span className="text-base font-black text-[#C79A45] font-figure">€{s.paid.toLocaleString()}</span>
+                        <span className="text-base font-black text-[#C79A45] font-figure">€{eur(s.paid)}</span>
                       </div>
                       <div className="bg-[#e8dcc8]/30 p-3 rounded-lg flex flex-col justify-center sm:col-span-1 md:col-span-1">
                         <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">Outstanding Balance</span>
                         <span className={`text-base font-bold font-mono ${s.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
-                          {s.balance > 0 ? `€${s.balance.toLocaleString()}` : s.balance < 0 ? `+€${Math.abs(s.balance).toLocaleString()}` : '€0'}
+                          {s.balance > 0 ? `€${eur(s.balance)}` : s.balance < 0 ? `+€${eur(Math.abs(s.balance))}` : '€0'}
                         </span>
                       </div>
                     </div>
@@ -541,7 +544,7 @@ export default function CotisationsPage() {
                                     {new Date(p.date_paid).toLocaleDateString()}
                                   </TableCell>
                                   <TableCell className="text-right font-mono font-bold text-[#C79A45] py-2">
-                                    €{p.amount.toLocaleString()}
+                                    €{eur(p.amount)}
                                   </TableCell>
                                   <TableCell className="capitalize py-2 text-[#16291F]">
                                     {p.method.replace('_', ' ')}
@@ -785,7 +788,7 @@ export default function CotisationsPage() {
                                 {parcelCount} parcels
                               </TableCell>
                               <TableCell className="py-3 font-mono text-[#7C9A5E]">
-                                €{(parcelCount * 50).toLocaleString()} <span className="text-[10px] text-[#7C9A5E]/80">(fee model)</span>
+                                €{eur(parcelCount * 50)} <span className="text-[10px] text-[#7C9A5E]/80">(fee model)</span>
                               </TableCell>
                               <TableCell className="py-2">
                                 <Input
@@ -841,7 +844,7 @@ export default function CotisationsPage() {
                               </TableCell>
                               <TableCell className="py-3 font-bold text-[#7C9A5E]">{p.quarter_name}</TableCell>
                               <TableCell className="text-right font-mono font-bold text-base text-[#C79A45] py-3">
-                                €{p.amount.toLocaleString()}
+                                €{eur(p.amount)}
                               </TableCell>
                               <TableCell className="capitalize py-3">{p.method.replace('_', ' ')}</TableCell>
                               <TableCell className="text-[#7C9A5E] py-3 max-w-[200px] truncate italic text-[11px]">

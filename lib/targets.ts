@@ -52,14 +52,14 @@ export interface TargetOverview {
 
 export function getOverview(): TargetOverview {
   const globalTarget = 3600000;
-  
-  // Calculate total raised across all target payments
-  const globalRaised = (db.prepare('SELECT SUM(amount) as total FROM contributions WHERE quarter_id IS NOT NULL').get() as { total: number | null }).total || 0;
-  
+
+  // Calculate total raised across all target payments (exclude soft-deleted)
+  const globalRaised = (db.prepare('SELECT SUM(amount) as total FROM contributions WHERE quarter_id IS NOT NULL AND deleted_at IS NULL').get() as { total: number | null }).total || 0;
+
   // List all quarters
   const quartersRaw = listQuarters();
   const quarters = quartersRaw.map((q) => {
-    const raised = (db.prepare('SELECT SUM(amount) as total FROM contributions WHERE quarter_id = ?').get(q.id) as { total: number | null }).total || 0;
+    const raised = (db.prepare('SELECT SUM(amount) as total FROM contributions WHERE quarter_id = ? AND deleted_at IS NULL').get(q.id) as { total: number | null }).total || 0;
     return { ...q, raised };
   });
   
@@ -178,6 +178,7 @@ export function listAllPayments(): Array<TargetPayment & { member_name: string |
     FROM contributions p
     JOIN members m ON p.member_id = m.id
     JOIN target_quarters q ON p.quarter_id = q.id
+    WHERE p.deleted_at IS NULL
     ORDER BY p.date DESC
   `).all() as any[];
   return rows.map((r) => ({

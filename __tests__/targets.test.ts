@@ -96,17 +96,17 @@ describe('Target-Based Cotisations Module', () => {
     let q1Standing = JohnStandings.find((s) => s.quarter.id === q1.id)!;
     expect(q1Standing.obligation).toBe(1500);
     expect(q1Standing.paid).toBe(0);
-    expect(q1Standing.balance).toBe(-1500);
+    expect(q1Standing.balance).toBe(1500);
     expect(q1Standing.status).toBe('behind');
 
     // Record €500 payment earmarked for m1 (July 2026)
     recordPayment(memberId, q1.id, m1.id, 500, now, 'bank_transfer', 'First wire', adminId);
 
-    // Verify standing updates (paid €500, balance -€1,000)
+    // Verify standing updates (paid €500, balance €1,000 still owed)
     JohnStandings = getMemberStanding(memberId);
     q1Standing = JohnStandings.find((s) => s.quarter.id === q1.id)!;
     expect(q1Standing.paid).toBe(500);
-    expect(q1Standing.balance).toBe(-1000);
+    expect(q1Standing.balance).toBe(1000);
     expect(q1Standing.payments).toHaveLength(1);
     expect(q1Standing.payments[0].amount).toBe(500);
     expect(q1Standing.payments[0].month_name).toBe(m1.name);
@@ -356,7 +356,7 @@ describe('Targets API Routes', () => {
     // Verify standing was updated
     const standing = getMemberStanding(memberId).find((s) => s.quarter.id === testQuarter.id);
     expect(standing?.paid).toBe(30000);
-    expect(standing?.balance).toBe(-20000); // 30000 - 50000 = -20000 (overpaid)
+    expect(standing?.balance).toBe(20000); // 50000 - 30000 = 20000 (still owe)
   });
 
   it('admin can edit a recorded payment and standing updates', async () => {
@@ -402,7 +402,7 @@ describe('Targets API Routes', () => {
     // Verify initial standing
     let standing = getMemberStanding(memberId).find((s) => s.quarter.id === testQuarter.id);
     expect(standing?.paid).toBe(20000);
-    expect(standing?.balance).toBe(-30000); // 20000 - 50000
+    expect(standing?.balance).toBe(30000); // 50000 - 20000
 
     // Act: Edit the payment to 35000
     const patchRoute = await import('@/app/api/contributions/[id]/route');
@@ -425,7 +425,7 @@ describe('Targets API Routes', () => {
     // Verify standing updated
     standing = getMemberStanding(memberId).find((s) => s.quarter.id === testQuarter.id);
     expect(standing?.paid).toBe(35000);
-    expect(standing?.balance).toBe(-15000); // 35000 - 50000
+    expect(standing?.balance).toBe(15000); // 50000 - 35000
   });
 
   it('admin can soft-delete a payment and standing updates', async () => {
@@ -493,7 +493,7 @@ describe('Targets API Routes', () => {
     // Verify standing updated (deleted payment should not count)
     standing = getMemberStanding(memberId).find((s) => s.quarter.id === testQuarter.id);
     expect(standing?.paid).toBe(0);
-    expect(standing?.balance).toBe(-50000); // 0 - 50000
+    expect(standing?.balance).toBe(50000); // 50000 - 0
   });
 
   it('admin can define monthly targets for a quarter and they must sum to quarterly target', async () => {

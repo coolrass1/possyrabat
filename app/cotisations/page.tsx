@@ -512,9 +512,9 @@ export default function CotisationsPage() {
                         <span className="text-base font-black text-[#C79A45] font-figure">€{s.paid.toLocaleString()}</span>
                       </div>
                       <div className="bg-[#e8dcc8]/30 p-3 rounded-lg flex flex-col justify-center sm:col-span-1 md:col-span-1">
-                        <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">Discrepancy</span>
-                        <span className={`text-base font-bold font-mono ${s.balance >= 0 ? 'text-[#7C9A5E]' : 'text-[#B5532E]'}`}>
-                          €{s.balance.toLocaleString()}
+                        <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">Outstanding Balance</span>
+                        <span className={`text-base font-bold font-mono ${s.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
+                          {s.balance > 0 ? `€${s.balance.toLocaleString()}` : s.balance < 0 ? `+€${Math.abs(s.balance).toLocaleString()}` : '€0'}
                         </span>
                       </div>
                     </div>

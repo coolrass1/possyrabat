@@ -104,8 +104,8 @@ export function getMemberStanding(memberId: string): MemberQuarterStanding[] {
     });
 
     const paid = payments.reduce((sum, p) => sum + p.amount, 0);
-    const balance = paid - obligation;
-    const status = balance >= 0 ? 'up_to_date' as const : 'behind' as const;
+    const balance = obligation - paid;
+    const status = balance <= 0 ? 'up_to_date' as const : 'behind' as const;
 
     return {
       quarter: q,

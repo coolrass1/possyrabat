@@ -347,31 +347,6 @@ export function initializeDb() {
       FOREIGN KEY (land_id) REFERENCES land(id),
       UNIQUE(member_id, land_id)
     );
-
-    CREATE TABLE IF NOT EXISTS meetings (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      date INTEGER NOT NULL,
-      location TEXT,
-      agenda TEXT,
-      description TEXT,
-      status TEXT DEFAULT 'planned',
-      created_by TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      FOREIGN KEY (created_by) REFERENCES members(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS meeting_documents (
-      id TEXT PRIMARY KEY,
-      meeting_id TEXT NOT NULL,
-      filename TEXT NOT NULL,
-      storage_path TEXT NOT NULL,
-      uploaded_by TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      FOREIGN KEY (meeting_id) REFERENCES meetings(id),
-      FOREIGN KEY (uploaded_by) REFERENCES members(id)
-    );
   `);
 
   // Lightweight migrations for columns added after a table's first creation.
@@ -392,10 +367,6 @@ export function initializeDb() {
   addColumn(`ALTER TABLE case_documents ADD COLUMN mime_type TEXT`);
   addColumn(`ALTER TABLE contributions ADD COLUMN quarter_id TEXT`);
   addColumn(`ALTER TABLE contributions ADD COLUMN month_id TEXT`);
-  addColumn(`ALTER TABLE meetings ADD COLUMN location TEXT`);
-  addColumn(`ALTER TABLE meetings ADD COLUMN agenda TEXT`);
-  addColumn(`ALTER TABLE meetings ADD COLUMN description TEXT`);
-  addColumn(`ALTER TABLE meetings ADD COLUMN status TEXT DEFAULT 'planned'`);
 
   // Migrate historical contributions to match targets by dates
   try {

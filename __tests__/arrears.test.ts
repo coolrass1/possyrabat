@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import db from '../lib/db';
 import { initializeDb } from '../lib/db';
+import { seedDefaultQuarters } from './helpers/seedQuarters';
 import {
   calculateMemberObligation,
   getMemberTotalPaid,
@@ -27,6 +28,8 @@ describe('Arrears & Obligations', () => {
     `);
 
     initializeDb();
+
+    seedDefaultQuarters();
     const q1 = db.prepare('SELECT id FROM target_quarters ORDER BY start_date ASC').get() as { id: string };
     q1Id = q1.id;
 

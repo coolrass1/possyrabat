@@ -1,11 +1,13 @@
 import db from '@/lib/db';
 import { hashPassword, createSession } from '@/lib/auth';
 import { initializeDb } from '@/lib/db';
+import { seedDefaultQuarters } from './helpers/seedQuarters';
 import { randomBytes } from 'crypto';
 
 describe('Contribution Obligation', () => {
   beforeAll(() => {
     initializeDb();
+    seedDefaultQuarters();
   });
 
   beforeEach(() => {
@@ -50,7 +52,7 @@ describe('Contribution Obligation', () => {
 
     expect(settings).toMatchObject({
       per_parcel_fee: 50,
-      currency: 'EUR',
+      currency: 'XOF',
     });
   });
 });
@@ -59,6 +61,7 @@ describe('My Standing', () => {
   beforeEach(() => {
     db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
+    seedDefaultQuarters();
   });
 
   it('member views their standing: obligation, paid, balance, status (behind)', async () => {
@@ -150,6 +153,7 @@ describe('Arrears List (committee)', () => {
   beforeEach(() => {
     db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
+    seedDefaultQuarters();
   });
 
   it('committee sees only members who are behind, with amount owed', async () => {

@@ -20,6 +20,36 @@ function rowToMember(row: any): Member {
   };
 }
 
+export async function seedOwner(data: {
+  email: string;
+  password: string;
+  name?: string;
+}): Promise<Member> {
+  const existing = db.prepare("SELECT * FROM members WHERE role = 'owner'").get();
+  if (existing) {
+    return rowToMember(existing);
+  }
+
+  const id = randomUUID();
+  const now = Date.now();
+  const passwordHash = await hashPassword(data.password);
+
+  db.prepare(`
+    INSERT INTO members (id, email, password_hash, name, role, parcel_count, status, must_change_password, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, data.email, passwordHash, data.name ?? 'Owner', 'owner', 0, 'active', 1, now);
+
+  const row = db.prepare('SELECT * FROM members WHERE id = ?').get(id);
+  return rowToMember(row);
+}
+
+export async function changePassword(memberId: string, newPassword: string): Promise<void> {
+  const passwordHash = await hashPassword(newPassword);
+  db.prepare(
+    'UPDATE members SET password_hash = ?, must_change_password = 0 WHERE id = ?'
+  ).run(passwordHash, memberId);
+}
+
 export async function createMember(data: {
   email: string;
   name: string;

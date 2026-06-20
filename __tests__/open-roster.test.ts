@@ -1,16 +1,19 @@
 import db from '@/lib/db';
 import { hashPassword, createSession } from '@/lib/auth';
 import { initializeDb } from '@/lib/db';
+import { seedDefaultQuarters } from './helpers/seedQuarters';
 import { randomBytes } from 'crypto';
 
 describe('Open Roster & Contribution Transparency', () => {
   beforeAll(() => {
     initializeDb();
+    seedDefaultQuarters();
   });
 
   beforeEach(() => {
     db.exec('PRAGMA foreign_keys=OFF; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
+    seedDefaultQuarters();
   });
 
   it('member views open roster with obligation/paid/status', async () => {
@@ -121,6 +124,7 @@ describe('Open Roster scope & settings fee', () => {
   beforeEach(() => {
     db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
+    seedDefaultQuarters();
   });
 
   it('includes committee members who hold parcels and computes correct obligations', async () => {

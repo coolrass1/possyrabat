@@ -1,6 +1,7 @@
 import db from '@/lib/db';
 import { hashPassword, createSession } from '@/lib/auth';
 import { initializeDb } from '@/lib/db';
+import { seedDefaultQuarters } from './helpers/seedQuarters';
 import {
   getOverview,
   getMemberStanding,
@@ -14,6 +15,7 @@ import {
 describe('Target-Based Cotisations Module', () => {
   beforeAll(() => {
     initializeDb();
+    seedDefaultQuarters();
   });
 
   beforeEach(() => {
@@ -29,6 +31,7 @@ describe('Target-Based Cotisations Module', () => {
     `);
     // Re-initialize to populate default target quarters & months
     initializeDb();
+    seedDefaultQuarters();
   });
 
   it('lists default quarters and months populated by seeder', () => {
@@ -63,6 +66,7 @@ describe('Target-Based Cotisations Module', () => {
 
     // Call initializeDb() which triggers migration
     initializeDb();
+    seedDefaultQuarters();
 
     // Query database to see if the contribution's quarter_id got updated
     const updated = db.prepare('SELECT quarter_id FROM contributions WHERE id = ?').get('hist-contrib-1') as { quarter_id: string | null };
@@ -142,6 +146,7 @@ describe('Targets API Routes', () => {
       PRAGMA foreign_keys=ON;
     `);
     initializeDb();
+    seedDefaultQuarters();
   });
 
   it('GET /api/targets/overview returns target overview', async () => {

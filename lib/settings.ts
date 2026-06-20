@@ -5,6 +5,7 @@ const SETTINGS_ID = 'global';
 export interface Settings {
   per_parcel_fee: number;
   currency: string;
+  global_target: number;
   enabled_sections: string[];
 }
 
@@ -27,11 +28,12 @@ export function getSettings(): Settings {
     }
   }
   if (!row) {
-    return { per_parcel_fee: 0, currency: 'EUR', enabled_sections: enabledSections };
+    return { per_parcel_fee: 0, currency: 'XOF', global_target: 0, enabled_sections: enabledSections };
   }
   return {
     per_parcel_fee: row.per_parcel_fee,
-    currency: row.currency || 'EUR',
+    currency: row.currency || 'XOF',
+    global_target: row.global_target ?? 0,
     enabled_sections: enabledSections,
   };
 }
@@ -51,7 +53,49 @@ export function setPerParcelFee(fee: number, updatedBy: string): Settings {
     const sectionsJson = JSON.stringify(DEFAULT_ENABLED_SECTIONS);
     db.prepare(
       'INSERT INTO settings (id, per_parcel_fee, currency, enabled_sections, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(SETTINGS_ID, fee, 'EUR', sectionsJson, updatedBy, now);
+    ).run(SETTINGS_ID, fee, 'XOF', sectionsJson, updatedBy, now);
+  }
+
+  return getSettings();
+}
+
+export function setCurrency(currency: string, updatedBy: string): Settings {
+  const now = Date.now();
+  const existing = db.prepare('SELECT id FROM settings WHERE id = ?').get(SETTINGS_ID);
+
+  if (existing) {
+    db.prepare('UPDATE settings SET currency = ?, updated_by = ?, updated_at = ? WHERE id = ?').run(
+      currency,
+      updatedBy,
+      now,
+      SETTINGS_ID
+    );
+  } else {
+    const sectionsJson = JSON.stringify(DEFAULT_ENABLED_SECTIONS);
+    db.prepare(
+      'INSERT INTO settings (id, per_parcel_fee, currency, enabled_sections, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(SETTINGS_ID, 0, currency, sectionsJson, updatedBy, now);
+  }
+
+  return getSettings();
+}
+
+export function setGlobalTarget(amount: number, updatedBy: string): Settings {
+  const now = Date.now();
+  const existing = db.prepare('SELECT id FROM settings WHERE id = ?').get(SETTINGS_ID);
+
+  if (existing) {
+    db.prepare('UPDATE settings SET global_target = ?, updated_by = ?, updated_at = ? WHERE id = ?').run(
+      amount,
+      updatedBy,
+      now,
+      SETTINGS_ID
+    );
+  } else {
+    const sectionsJson = JSON.stringify(DEFAULT_ENABLED_SECTIONS);
+    db.prepare(
+      'INSERT INTO settings (id, per_parcel_fee, currency, global_target, enabled_sections, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(SETTINGS_ID, 0, 'XOF', amount, sectionsJson, updatedBy, now);
   }
 
   return getSettings();
@@ -72,7 +116,7 @@ export function setEnabledSections(sections: string[], updatedBy: string): Setti
   } else {
     db.prepare(
       'INSERT INTO settings (id, per_parcel_fee, currency, enabled_sections, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(SETTINGS_ID, 0, 'EUR', sectionsJson, updatedBy, now);
+    ).run(SETTINGS_ID, 0, 'XOF', sectionsJson, updatedBy, now);
   }
 
   return getSettings();
@@ -97,7 +141,7 @@ export function setRules(rulesText: string, updatedBy: string): string {
   } else {
     db.prepare(
       'INSERT INTO settings (id, per_parcel_fee, currency, rules_text, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(SETTINGS_ID, 0, 'EUR', rulesText, updatedBy, now);
+    ).run(SETTINGS_ID, 0, 'XOF', rulesText, updatedBy, now);
   }
 
   return getRules();

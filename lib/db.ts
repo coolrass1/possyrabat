@@ -18,6 +18,7 @@ export function initializeDb() {
       parcel_count INTEGER DEFAULT 0,
       role TEXT DEFAULT 'member',
       status TEXT DEFAULT 'active',
+      must_change_password INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     );
 
@@ -81,7 +82,8 @@ export function initializeDb() {
     CREATE TABLE IF NOT EXISTS settings (
       id TEXT PRIMARY KEY,
       per_parcel_fee REAL NOT NULL DEFAULT 0,
-      currency TEXT NOT NULL DEFAULT 'EUR',
+      currency TEXT NOT NULL DEFAULT 'XOF',
+      global_target REAL NOT NULL DEFAULT 0,
       enabled_sections TEXT,
       updated_by TEXT,
       updated_at INTEGER
@@ -360,8 +362,10 @@ export function initializeDb() {
     }
   };
   addColumn(`ALTER TABLE members ADD COLUMN status TEXT DEFAULT 'active'`);
+  addColumn(`ALTER TABLE members ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0`);
   addColumn(`ALTER TABLE settings ADD COLUMN rules_text TEXT`);
   addColumn(`ALTER TABLE settings ADD COLUMN enabled_sections TEXT`);
+  addColumn(`ALTER TABLE settings ADD COLUMN global_target REAL NOT NULL DEFAULT 0`);
   addColumn(`ALTER TABLE cases ADD COLUMN lawyer_name TEXT`);
   addColumn(`ALTER TABLE cases ADD COLUMN lawyer_contact TEXT`);
   addColumn(`ALTER TABLE case_documents ADD COLUMN mime_type TEXT`);
@@ -384,63 +388,9 @@ export function initializeDb() {
     console.error('Failed to migrate historical contributions:', err);
   }
 
-  // Pre-populate target quarters and months if target_quarters is empty
-  try {
-    const quartersCount = db.prepare('SELECT COUNT(*) as count FROM target_quarters').get() as { count: number } | undefined;
-    if (quartersCount && quartersCount.count === 0) {
-      const insertQ = db.prepare(`
-        INSERT OR IGNORE INTO target_quarters (id, name, start_date, end_date, target_amount, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-      const insertM = db.prepare(`
-        INSERT OR IGNORE INTO target_months (id, quarter_id, name, target_amount, created_at)
-        VALUES (?, ?, ?, ?, ?)
-      `);
-      
-      const now = Date.now();
-      const defaultQuarters = [
-        { id: 'q3-2026', name: 'Q3 2026', start: 1782940800000, end: 1790812799000, target: 600000, months: [
-          { id: 'm-jul-2026', name: 'July 2026', target: 200000 },
-          { id: 'm-aug-2026', name: 'August 2026', target: 200000 },
-          { id: 'm-sep-2026', name: 'September 2026', target: 200000 },
-        ]},
-        { id: 'q4-2026', name: 'Q4 2026', start: 1790812800000, end: 1798761599000, target: 600000, months: [
-          { id: 'm-oct-2026', name: 'October 2026', target: 200000 },
-          { id: 'm-nov-2026', name: 'November 2026', target: 200000 },
-          { id: 'm-dec-2026', name: 'December 2026', target: 200000 },
-        ]},
-        { id: 'q1-2027', name: 'Q1 2027', start: 1798761600000, end: 1806537599000, target: 600000, months: [
-          { id: 'm-jan-2027', name: 'January 2027', target: 200000 },
-          { id: 'm-feb-2027', name: 'February 2027', target: 200000 },
-          { id: 'm-mar-2027', name: 'March 2027', target: 200000 },
-        ]},
-        { id: 'q2-2027', name: 'Q2 2027', start: 1806537600000, end: 1814399999000, target: 600000, months: [
-          { id: 'm-apr-2027', name: 'April 2027', target: 200000 },
-          { id: 'm-may-2027', name: 'May 2027', target: 200000 },
-          { id: 'm-jun-2027', name: 'June 2027', target: 200000 },
-        ]},
-        { id: 'q3-2027', name: 'Q3 2027', start: 1814400000000, end: 1822262399000, target: 600000, months: [
-          { id: 'm-jul-2027', name: 'July 2027', target: 200000 },
-          { id: 'm-aug-2027', name: 'August 2027', target: 200000 },
-          { id: 'm-sep-2027', name: 'September 2027', target: 200000 },
-        ]},
-        { id: 'q4-2027', name: 'Q4 2027', start: 1822262400000, end: 1830211199000, target: 600000, months: [
-          { id: 'm-oct-2027', name: 'October 2027', target: 200000 },
-          { id: 'm-nov-2027', name: 'November 2027', target: 200000 },
-          { id: 'm-dec-2027', name: 'December 2027', target: 200000 },
-        ]},
-      ];
-      
-      for (const q of defaultQuarters) {
-        insertQ.run(q.id, q.name, q.start, q.end, q.target, now);
-        for (const m of q.months) {
-          insertM.run(m.id, q.id, m.name, m.target, now);
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Failed to pre-populate target quarters:', err);
-  }
+  // Clean-slate policy: no sample quarters, months, members, or payments are
+  // seeded on initialization. The only bootstrap account is created by the
+  // owner seed script (scripts/seed.ts) from env-configured credentials.
 
   // Pre-populate global settings and default enabled sections if needed
   try {
@@ -456,7 +406,7 @@ export function initializeDb() {
       db.prepare(`
         INSERT INTO settings (id, per_parcel_fee, currency, enabled_sections, updated_at)
         VALUES (?, ?, ?, ?, ?)
-      `).run('global', 0, 'EUR', defaultSections, Date.now());
+      `).run('global', 0, 'XOF', defaultSections, Date.now());
     } else if (existing.enabled_sections === null || existing.enabled_sections === undefined) {
       db.prepare(`
         UPDATE settings SET enabled_sections = ? WHERE id = ?

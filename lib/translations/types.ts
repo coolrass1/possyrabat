@@ -208,6 +208,19 @@ export interface TranslationSchema {
     statusHeader: string;
     parcelsSuffix: string;
     noMembersMatch: string;
+    monthlyTitle: string;
+    monthCol: string;
+    targetCol: string;
+    paidCol: string;
+    remainingCol: string;
+    statusCol: string;
+    statusCompleted: string;
+    statusPartial: string;
+    statusPending: string;
+    statusOverdue: string;
+    behindByLabel: string;
+    paidInFull: string;
+    overpaidByLabel: string;
   };
   spending: {
     title: string;

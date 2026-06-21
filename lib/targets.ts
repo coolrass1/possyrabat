@@ -166,6 +166,104 @@ export interface MemberQuarterStanding {
   payments: Array<TargetPayment & { month_name: string | null }>;
 }
 
+export type MonthStatus = 'completed' | 'partial' | 'pending' | 'overdue';
+
+export interface MemberMonthBreakdown {
+  month_id: string;
+  name: string;
+  target: number;
+  paid: number;
+  status: MonthStatus;
+}
+
+export interface MemberQuarterBreakdown {
+  quarter: TargetQuarter;
+  obligation: number;
+  target: number; // == obligation (amount the member owes this quarter)
+  paid: number;
+  remaining: number; // amount-owed convention, floored at 0
+  overpaid: number; // max(0, paid - obligation)
+  progress: number; // clamped 0..100 for bar fill
+  behind_by: number; // sum of shortfalls on past-due (overdue) months only
+  months: MemberMonthBreakdown[];
+}
+
+// Calendar-month boundaries are derived from the quarter start by ordinal
+// position, since target_months store no dates of their own.
+function addUTCMonths(ts: number, n: number): number {
+  const d = new Date(ts);
+  d.setUTCMonth(d.getUTCMonth() + n);
+  return d.getTime();
+}
+
+export function getMemberQuarterBreakdown(
+  memberId: string,
+  quarterId: string,
+  now: number = Date.now()
+): MemberQuarterBreakdown {
+  const quarter = getQuarterById(quarterId)!;
+  const obRow = db
+    .prepare('SELECT amount_due FROM member_quarter_obligations WHERE member_id = ? AND quarter_id = ?')
+    .get(memberId, quarterId) as { amount_due: number } | undefined;
+  const obligation = obRow ? obRow.amount_due : 0;
+
+  const months = listMonths(quarterId); // created_at ASC = chronological
+  const quarterTarget = quarter.target_amount;
+
+  const payments = db
+    .prepare('SELECT * FROM target_payments WHERE member_id = ? AND quarter_id = ? AND deleted_at IS NULL')
+    .all(memberId, quarterId) as TargetPayment[];
+
+  // Earmarked payments land on their month; the rest form a pool to waterfall.
+  const earmarked: Record<string, number> = {};
+  let pool = 0;
+  for (const p of payments) {
+    if (p.month_id) earmarked[p.month_id] = (earmarked[p.month_id] || 0) + p.amount;
+    else pool += p.amount;
+  }
+
+  const rows = months.map((m, i) => {
+    const ratio = quarterTarget > 0 ? m.target_amount / quarterTarget : 0;
+    const nextStart = addUTCMonths(quarter.start_date, i + 1);
+    return {
+      month: m,
+      target: obligation * ratio,
+      paid: earmarked[m.id] || 0,
+      ended: now >= nextStart,
+    };
+  });
+
+  // Waterfall the un-earmarked pool earliest-month-first, up to each target.
+  let remainingPool = pool;
+  for (const r of rows) {
+    if (remainingPool <= 0) break;
+    const give = Math.min(Math.max(0, r.target - r.paid), remainingPool);
+    r.paid += give;
+    remainingPool -= give;
+  }
+
+  const monthsOut: MemberMonthBreakdown[] = rows.map((r) => {
+    let status: MonthStatus;
+    if (r.paid >= r.target) status = 'completed';
+    else if (r.ended) status = 'overdue';
+    else if (r.paid > 0) status = 'partial';
+    else status = 'pending';
+    return { month_id: r.month.id, name: r.month.name, target: r.target, paid: r.paid, status };
+  });
+
+  const behind_by = rows.reduce(
+    (sum, r) => (r.ended && r.paid < r.target ? sum + (r.target - r.paid) : sum),
+    0
+  );
+
+  const paid = payments.reduce((s, p) => s + p.amount, 0);
+  const remaining = Math.max(0, obligation - paid);
+  const overpaid = Math.max(0, paid - obligation);
+  const progress = obligation > 0 ? Math.min(100, (paid / obligation) * 100) : paid > 0 ? 100 : 0;
+
+  return { quarter, obligation, target: obligation, paid, remaining, overpaid, progress, behind_by, months: monthsOut };
+}
+
 export function getMemberStanding(memberId: string): MemberQuarterStanding[] {
   const quarters = listQuarters();
   return quarters.map((q) => {

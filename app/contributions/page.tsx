@@ -24,6 +24,24 @@ import { Label } from '@/app/components/ui/label';
 import { Progress } from '@/app/components/ui/progress';
 import { Badge } from '@/app/components/ui/badge';
 import { useLanguage } from '@/app/components/LanguageProvider';
+import { formatMoney } from '@/lib/utils';
+
+interface MonthBreakdown {
+  month_id: string;
+  name: string;
+  target: number;
+  paid: number;
+  status: 'completed' | 'partial' | 'pending' | 'overdue';
+}
+interface QuarterBreakdown {
+  quarter: { id: string; name: string };
+  target: number;
+  paid: number;
+  remaining: number;
+  overpaid: number;
+  behind_by: number;
+  months: MonthBreakdown[];
+}
 
 interface TargetQuarter {
   id: string;
@@ -82,6 +100,7 @@ export default function ContributionsPage() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'my-standing' | 'roster'>('my-standing');
+  const [breakdown, setBreakdown] = useState<QuarterBreakdown | null>(null);
 
   // Format a monetary amount as whole euros (rounded, with thousands separators)
   const eur = (n: number) => Math.round(n).toLocaleString();
@@ -120,6 +139,13 @@ export default function ContributionsPage() {
         const standingRes = await fetch('/api/targets/my-standing');
         if (standingRes.ok) {
           setStandings(await standingRes.json());
+        }
+
+        // Fetch the active-quarter monthly breakdown
+        const breakdownRes = await fetch('/api/targets/my-breakdown');
+        if (breakdownRes.ok) {
+          const bd = await breakdownRes.json();
+          setBreakdown(bd.breakdown);
         }
 
         // Fetch roster
@@ -387,6 +413,65 @@ export default function ContributionsPage() {
               <CardDescription>{t('contributions.individualStandingsDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {breakdown && (
+                <div className="border border-[#e8dcc8]/60 rounded-xl p-6 bg-white space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h4 className="text-lg font-bold text-[#16291F] font-serif">
+                      {t('contributions.monthlyTitle')} — {breakdown.quarter.name}
+                    </h4>
+                    {breakdown.behind_by > 0 ? (
+                      <span className="text-sm font-bold font-mono text-[#B5532E]">
+                        {t('contributions.behindByLabel')} {formatMoney(breakdown.behind_by)}
+                      </span>
+                    ) : breakdown.overpaid > 0 ? (
+                      <span className="text-sm font-bold font-mono text-[#7C9A5E]">
+                        {t('contributions.paidInFull')} · {t('contributions.overpaidByLabel')} {formatMoney(breakdown.overpaid)}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-bold font-mono text-[#16291F]">
+                        {formatMoney(breakdown.remaining)} {t('contributions.remainingCol').toLowerCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="overflow-x-auto border border-[#e8dcc8]/45 rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('contributions.monthCol')}</TableHead>
+                          <TableHead>{t('contributions.targetCol')}</TableHead>
+                          <TableHead>{t('contributions.paidCol')}</TableHead>
+                          <TableHead>{t('contributions.remainingCol')}</TableHead>
+                          <TableHead>{t('contributions.statusCol')}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {breakdown.months.map((m) => {
+                          const remaining = Math.max(0, m.target - m.paid);
+                          const statusLabel = {
+                            completed: t('contributions.statusCompleted'),
+                            partial: t('contributions.statusPartial'),
+                            pending: t('contributions.statusPending'),
+                            overdue: t('contributions.statusOverdue'),
+                          }[m.status];
+                          const statusVariant =
+                            m.status === 'completed' ? 'moss' : m.status === 'overdue' ? 'clay' : 'secondary';
+                          return (
+                            <TableRow key={m.month_id}>
+                              <TableCell className="font-bold text-[#16291F]">{m.name}</TableCell>
+                              <TableCell className="font-mono">{formatMoney(m.target)}</TableCell>
+                              <TableCell className="font-mono text-[#C79A45]">{formatMoney(m.paid)}</TableCell>
+                              <TableCell className="font-mono">{formatMoney(remaining)}</TableCell>
+                              <TableCell>
+                                <Badge variant={statusVariant as any} className="font-bold">{statusLabel}</Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
               {standings.length > 0 ? (
                 <div className="space-y-6">
                   {standings.map((s) => (

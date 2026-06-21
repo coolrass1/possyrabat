@@ -122,11 +122,17 @@ export interface EmailLog {
   created_at: number;
 }
 
+export type MeetingStatus = 'Planned' | 'Completed' | 'Cancelled';
+
 export interface Meeting {
   id: string;
   date: number;
   title: string;
   notes: string | null;
+  location: string | null;
+  agenda: string | null;
+  description: string | null;
+  status: MeetingStatus;
   attendees: string[]; // member IDs
   created_by: string;
   created_at: number;

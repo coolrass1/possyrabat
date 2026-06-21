@@ -189,6 +189,10 @@ export function initializeDb() {
       date INTEGER NOT NULL,
       title TEXT NOT NULL,
       notes TEXT,
+      location TEXT,
+      agenda TEXT,
+      description TEXT,
+      status TEXT DEFAULT 'Planned',
       attendees TEXT NOT NULL,
       created_by TEXT NOT NULL,
       created_at INTEGER NOT NULL,
@@ -371,6 +375,10 @@ export function initializeDb() {
   addColumn(`ALTER TABLE case_documents ADD COLUMN mime_type TEXT`);
   addColumn(`ALTER TABLE contributions ADD COLUMN quarter_id TEXT`);
   addColumn(`ALTER TABLE contributions ADD COLUMN month_id TEXT`);
+  addColumn(`ALTER TABLE meetings ADD COLUMN location TEXT`);
+  addColumn(`ALTER TABLE meetings ADD COLUMN agenda TEXT`);
+  addColumn(`ALTER TABLE meetings ADD COLUMN description TEXT`);
+  addColumn(`ALTER TABLE meetings ADD COLUMN status TEXT DEFAULT 'Planned'`);
 
   // Migrate historical contributions to match targets by dates
   try {

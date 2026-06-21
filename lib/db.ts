@@ -334,6 +334,26 @@ export function initializeDb() {
       UNIQUE(member_id, quarter_id)
     );
 
+    CREATE TABLE IF NOT EXISTS target_payments (
+      id TEXT PRIMARY KEY,
+      member_id TEXT NOT NULL,
+      quarter_id TEXT,
+      month_id TEXT,
+      amount REAL NOT NULL,
+      date_paid INTEGER NOT NULL,
+      method TEXT NOT NULL,
+      notes TEXT,
+      recorded_by TEXT NOT NULL,
+      updated_by TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL DEFAULT 0,
+      deleted_at INTEGER,
+      FOREIGN KEY (member_id) REFERENCES members(id),
+      FOREIGN KEY (quarter_id) REFERENCES target_quarters(id),
+      FOREIGN KEY (month_id) REFERENCES target_months(id),
+      FOREIGN KEY (recorded_by) REFERENCES members(id)
+    );
+
     CREATE TABLE IF NOT EXISTS land (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,

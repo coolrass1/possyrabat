@@ -84,7 +84,7 @@ export interface CaseAction {
 
 export interface AuditEntry {
   id: string;
-  entity_type: 'contribution' | 'expense' | 'case' | 'case_step' | 'member' | 'parcel';
+  entity_type: 'contribution' | 'expense' | 'case' | 'case_step' | 'member' | 'parcel' | 'target_payment';
   entity_id: string;
   action: 'created' | 'updated' | 'deleted';
   before_values: Record<string, any> | null;
@@ -257,7 +257,10 @@ export interface TargetPayment {
   method: string;
   notes: string | null;
   recorded_by: string;
+  updated_by: string | null;
   created_at: number;
+  updated_at: number;
+  deleted_at: number | null;
 }
 
 export interface Contribution {

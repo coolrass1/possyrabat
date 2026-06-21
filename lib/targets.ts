@@ -133,12 +133,12 @@ export function getOverview(): TargetOverview {
   const globalTarget = 3600000;
 
   // Calculate total raised across all target payments (exclude soft-deleted)
-  const globalRaised = (db.prepare('SELECT SUM(amount) as total FROM contributions WHERE quarter_id IS NOT NULL AND deleted_at IS NULL').get() as { total: number | null }).total || 0;
+  const globalRaised = (db.prepare('SELECT SUM(amount) as total FROM target_payments WHERE quarter_id IS NOT NULL AND deleted_at IS NULL').get() as { total: number | null }).total || 0;
 
   // List all quarters
   const quartersRaw = listQuarters();
   const quarters = quartersRaw.map((q) => {
-    const raised = (db.prepare('SELECT SUM(amount) as total FROM contributions WHERE quarter_id = ? AND deleted_at IS NULL').get(q.id) as { total: number | null }).total || 0;
+    const raised = (db.prepare('SELECT SUM(amount) as total FROM target_payments WHERE quarter_id = ? AND deleted_at IS NULL').get(q.id) as { total: number | null }).total || 0;
     return { ...q, raised };
   });
   
@@ -174,15 +174,15 @@ export function getMemberStanding(memberId: string): MemberQuarterStanding[] {
     const obligation = ob ? ob.amount_due : 0;
 
     // Get payments recorded for this member in this quarter (exclude soft-deleted)
-    const paymentsRaw = db.prepare('SELECT * FROM contributions WHERE member_id = ? AND quarter_id = ? AND deleted_at IS NULL ORDER BY date DESC').all(memberId, q.id) as any[];
-    
+    const paymentsRaw = db.prepare('SELECT * FROM target_payments WHERE member_id = ? AND quarter_id = ? AND deleted_at IS NULL ORDER BY date_paid DESC').all(memberId, q.id) as any[];
+
     const payments = paymentsRaw.map((p) => {
       let month_name: string | null = null;
       if (p.month_id) {
         const m = getMonthById(p.month_id);
         if (m) month_name = m.name;
       }
-      return { ...p, date_paid: p.date, month_name };
+      return { ...p, month_name };
     });
 
     const paid = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -247,28 +247,95 @@ export function recordPayment(
   const id = generateId();
   const now = Date.now();
   db.prepare(`
-    INSERT INTO contributions (id, member_id, quarter_id, month_id, amount, date, method, notes, recorded_by, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, memberId, quarterId, monthId, amount, datePaid, method, notes, recordedBy, now);
-  
-  const res = db.prepare('SELECT * FROM contributions WHERE id = ?').get(id) as any;
-  return {
-    ...res,
-    date_paid: res.date
+    INSERT INTO target_payments (id, member_id, quarter_id, month_id, amount, date_paid, method, notes, recorded_by, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, memberId, quarterId, monthId, amount, datePaid, method, notes, recordedBy, now, now);
+
+  const payment = db.prepare('SELECT * FROM target_payments WHERE id = ?').get(id) as TargetPayment;
+  auditPayment('created', id, null, payment, recordedBy);
+  return payment;
+}
+
+// Synchronous audit insert for target_payments (better-sqlite3 writes are sync;
+// kept inline to keep payment functions synchronous for existing call sites).
+function auditPayment(
+  action: 'created' | 'updated' | 'deleted',
+  paymentId: string,
+  before: Record<string, any> | null,
+  after: Record<string, any>,
+  performedBy: string
+): void {
+  db.prepare(`
+    INSERT INTO audit_log (id, entity_type, entity_id, action, before_values, after_values, performed_by, created_at)
+    VALUES (?, 'target_payment', ?, ?, ?, ?, ?, ?)
+  `).run(
+    generateId(),
+    paymentId,
+    action,
+    before ? JSON.stringify(before) : null,
+    JSON.stringify(after),
+    performedBy,
+    Date.now()
+  );
+}
+
+export function getPaymentById(id: string): TargetPayment | null {
+  return (db.prepare('SELECT * FROM target_payments WHERE id = ?').get(id) as TargetPayment) || null;
+}
+
+export interface PaymentPatch {
+  quarter_id?: string | null;
+  month_id?: string | null;
+  amount?: number;
+  date_paid?: number;
+  method?: string;
+  notes?: string | null;
+}
+
+export function updatePayment(id: string, patch: PaymentPatch, updatedBy: string): TargetPayment | null {
+  const before = getPaymentById(id);
+  if (!before || before.deleted_at) return null;
+
+  const next = {
+    quarter_id: patch.quarter_id !== undefined ? patch.quarter_id : before.quarter_id,
+    month_id: patch.month_id !== undefined ? patch.month_id : before.month_id,
+    amount: patch.amount !== undefined ? patch.amount : before.amount,
+    date_paid: patch.date_paid !== undefined ? patch.date_paid : before.date_paid,
+    method: patch.method !== undefined ? patch.method : before.method,
+    notes: patch.notes !== undefined ? patch.notes : before.notes,
   };
+
+  db.prepare(`
+    UPDATE target_payments
+    SET quarter_id = ?, month_id = ?, amount = ?, date_paid = ?, method = ?, notes = ?, updated_by = ?, updated_at = ?
+    WHERE id = ?
+  `).run(next.quarter_id, next.month_id, next.amount, next.date_paid, next.method, next.notes, updatedBy, Date.now(), id);
+
+  const after = getPaymentById(id)!;
+  auditPayment('updated', id, before, after, updatedBy);
+  return after;
+}
+
+export function softDeletePayment(id: string, deletedBy: string): TargetPayment | null {
+  const before = getPaymentById(id);
+  if (!before || before.deleted_at) return null;
+
+  const now = Date.now();
+  db.prepare('UPDATE target_payments SET deleted_at = ?, updated_by = ?, updated_at = ? WHERE id = ?').run(now, deletedBy, now, id);
+
+  const after = getPaymentById(id)!;
+  auditPayment('deleted', id, before, after, deletedBy);
+  return after;
 }
 
 export function listAllPayments(): Array<TargetPayment & { member_name: string | null; member_email: string; quarter_name: string }> {
   const rows = db.prepare(`
     SELECT p.*, m.name as member_name, m.email as member_email, q.name as quarter_name
-    FROM contributions p
+    FROM target_payments p
     JOIN members m ON p.member_id = m.id
     JOIN target_quarters q ON p.quarter_id = q.id
     WHERE p.deleted_at IS NULL
-    ORDER BY p.date DESC
+    ORDER BY p.date_paid DESC
   `).all() as any[];
-  return rows.map((r) => ({
-    ...r,
-    date_paid: r.date
-  }));
+  return rows as Array<TargetPayment & { member_name: string | null; member_email: string; quarter_name: string }>;
 }

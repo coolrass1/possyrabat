@@ -19,7 +19,7 @@ describe('Arrears & Obligations', () => {
     // Clean up
     db.exec(`
       PRAGMA foreign_keys=OFF;
-      DELETE FROM contributions;
+      DELETE FROM contributions; DELETE FROM target_payments;
       DELETE FROM members;
       DELETE FROM target_quarters;
       DELETE FROM target_months;
@@ -66,12 +66,12 @@ describe('Arrears & Obligations', () => {
     it('sums all contributions for a member', async () => {
       // Record some contributions
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 100, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 75, Date.now(), 'transfer', committeeId, Date.now(), q1Id);
 
@@ -88,7 +88,7 @@ describe('Arrears & Obligations', () => {
   describe('arrears calculation', () => {
     it('calculates arrears as obligation - paid', async () => {
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 100, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
@@ -98,7 +98,7 @@ describe('Arrears & Obligations', () => {
 
     it('returns negative arrears if overpaid', async () => {
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 250, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
@@ -108,7 +108,7 @@ describe('Arrears & Obligations', () => {
 
     it('returns 0 if fully paid', async () => {
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 200, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
@@ -120,7 +120,7 @@ describe('Arrears & Obligations', () => {
   describe('member status determination', () => {
     it('status is "paid" when arrears <= 0', async () => {
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 250, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
@@ -130,7 +130,7 @@ describe('Arrears & Obligations', () => {
 
     it('status is "outstanding" when some amount owed', async () => {
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 100, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
@@ -161,7 +161,7 @@ describe('Arrears & Obligations', () => {
 
       // Member 1: owes 200, paid 100 (100 outstanding)
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 100, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
@@ -198,13 +198,13 @@ describe('Arrears & Obligations', () => {
 
       // Member 1: owes 200, paid 100 (100 outstanding)
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 100, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
       // Member 2: owes 150, paid 150 (fully paid)
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), member2Id, 150, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
@@ -240,14 +240,14 @@ describe('Arrears & Obligations', () => {
 
       // Member 1: owes 200, paid 100 (100 outstanding)
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 100, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 
       // Member 2: owes 100, paid 0 (100 outstanding)
       // Member 3: owes 300, paid 200 (100 outstanding)
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, quarter_id)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, quarter_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), member3Id, 200, Date.now(), 'cash', committeeId, Date.now(), q1Id);
 

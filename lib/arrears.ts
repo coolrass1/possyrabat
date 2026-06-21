@@ -19,7 +19,7 @@ export async function calculateMemberObligation(memberId: string): Promise<numbe
 export async function getMemberTotalPaid(memberId: string): Promise<number> {
   const result = db.prepare(`
     SELECT COALESCE(SUM(amount), 0) as total
-    FROM contributions
+    FROM target_payments
     WHERE member_id = ? AND deleted_at IS NULL
   `).get(memberId) as any;
 

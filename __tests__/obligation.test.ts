@@ -11,7 +11,7 @@ describe('Contribution Obligation', () => {
   });
 
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM target_payments; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
   });
 
   it('committee sets per-parcel fee in settings; it is retrievable', async () => {
@@ -59,7 +59,7 @@ describe('Contribution Obligation', () => {
 
 describe('My Standing', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM target_payments; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
     seedDefaultQuarters();
   });
@@ -84,7 +84,7 @@ describe('My Standing', () => {
     // Bob paid €200 inside Q3 2026 timeline (July 2026) -> behind by €100
     const july2026Time = 1783000000000;
     db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(randomBytes(16).toString('hex'), memberId, 200, july2026Time, 'transfer', committeeId, now, null, q1.id);
 
     const memberSession = createSession(memberId);
@@ -126,7 +126,7 @@ describe('My Standing', () => {
     // Alice paid €200 = obligation
     const july2026Time = 1783000000000;
     db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(randomBytes(16).toString('hex'), memberId, 200, july2026Time, 'transfer', committeeId, now, null, q1.id);
 
     const memberSession = createSession(memberId);
@@ -151,7 +151,7 @@ describe('My Standing', () => {
 
 describe('Arrears List (committee)', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM target_payments; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
     seedDefaultQuarters();
   });
@@ -177,7 +177,7 @@ describe('Arrears List (committee)', () => {
     setObligation('m-carol', q1.id, 100);
 
     const insertContrib = db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     // Alice fully paid (200) -> up to date, NOT in arrears
     insertContrib.run(randomBytes(16).toString('hex'), 'm-alice', 200, now, 'transfer', committeeId, now, null, q1.id);

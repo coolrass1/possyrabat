@@ -27,6 +27,7 @@ describe('Target-Based Cotisations Module', () => {
       DELETE FROM target_months;
       DELETE FROM member_quarter_obligations;
       DELETE FROM contributions;
+      DELETE FROM target_payments;
       PRAGMA foreign_keys=ON;
     `);
     // Re-initialize to populate default target quarters & months
@@ -143,6 +144,7 @@ describe('Targets API Routes', () => {
       DELETE FROM target_months;
       DELETE FROM member_quarter_obligations;
       DELETE FROM contributions;
+      DELETE FROM target_payments;
       PRAGMA foreign_keys=ON;
     `);
     initializeDb();
@@ -335,7 +337,7 @@ describe('Targets API Routes', () => {
     setObligation(memberId, testQuarter.id, 50000);
 
     const committeeSession = createSession(committeeId);
-    const { POST: postContributionRoute } = await import('@/app/api/contributions/route');
+    const { POST: postPaymentRoute } = await import('@/app/api/targets/payments/route');
 
     // Act: record a payment
     const paymentDate = 1696118400000; // Oct 1 2026
@@ -346,14 +348,14 @@ describe('Targets API Routes', () => {
       json: async () => ({
         member_id: memberId,
         amount: 30000,
-        date: paymentDate,
+        quarter_id: testQuarter.id, date_paid: paymentDate,
         method: 'mobile_money',
         notes: 'Mpesa transfer',
       }),
     } as any;
 
-    const res = await postContributionRoute(req);
-    expect(res.status).toBe(201);
+    const res = await postPaymentRoute(req);
+    expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.amount).toBe(30000);
     expect(body.method).toBe('mobile_money');
@@ -386,7 +388,7 @@ describe('Targets API Routes', () => {
     const committeeSession = createSession(committeeId);
 
     // Record initial payment
-    const { POST: postContributionRoute } = await import('@/app/api/contributions/route');
+    const { POST: postPaymentRoute } = await import('@/app/api/targets/payments/route');
     let req = {
       cookies: {
         get: (name: string) => (name === 'session_id' ? { value: committeeSession.id } : undefined),
@@ -394,14 +396,14 @@ describe('Targets API Routes', () => {
       json: async () => ({
         member_id: memberId,
         amount: 20000,
-        date: 1696118400000,
+        quarter_id: testQuarter.id, date_paid: 1696118400000,
         method: 'cash',
         notes: 'Initial payment',
       }),
     } as any;
 
-    let res = await postContributionRoute(req);
-    expect(res.status).toBe(201);
+    let res = await postPaymentRoute(req);
+    expect(res.status).toBe(200);
     const paymentId = (await res.json()).id;
 
     // Verify initial standing
@@ -410,7 +412,7 @@ describe('Targets API Routes', () => {
     expect(standing?.balance).toBe(30000); // 50000 - 20000
 
     // Act: Edit the payment to 35000
-    const patchRoute = await import('@/app/api/contributions/[id]/route');
+    const patchRoute = await import('@/app/api/targets/payments/[id]/route');
     req = {
       cookies: {
         get: (name: string) => (name === 'session_id' ? { value: committeeSession.id } : undefined),
@@ -421,7 +423,7 @@ describe('Targets API Routes', () => {
       }),
     } as any;
 
-    const patchRes = await (patchRoute.PATCH as any)(req, { id: paymentId });
+    const patchRes = await (patchRoute.PATCH as any)(req, { params: Promise.resolve({ id: paymentId }) });
     expect(patchRes.status).toBe(200);
     const updated = await patchRes.json();
     expect(updated.amount).toBe(35000);
@@ -455,7 +457,7 @@ describe('Targets API Routes', () => {
     const committeeSession = createSession(committeeId);
 
     // Record payment
-    const { POST: postContributionRoute } = await import('@/app/api/contributions/route');
+    const { POST: postPaymentRoute } = await import('@/app/api/targets/payments/route');
     let req = {
       cookies: {
         get: (name: string) => (name === 'session_id' ? { value: committeeSession.id } : undefined),
@@ -463,13 +465,13 @@ describe('Targets API Routes', () => {
       json: async () => ({
         member_id: memberId,
         amount: 40000,
-        date: 1696118400000,
+        quarter_id: testQuarter.id, date_paid: 1696118400000,
         method: 'cash',
         notes: 'Test payment to delete',
       }),
     } as any;
 
-    let res = await postContributionRoute(req);
+    let res = await postPaymentRoute(req);
     const paymentId = (await res.json()).id;
 
     // Verify initial standing
@@ -477,21 +479,21 @@ describe('Targets API Routes', () => {
     expect(standing?.paid).toBe(40000);
 
     // Act: Delete the payment
-    const deleteRoute = await import('@/app/api/contributions/[id]/route');
+    const deleteRoute = await import('@/app/api/targets/payments/[id]/route');
     req = {
       cookies: {
         get: (name: string) => (name === 'session_id' ? { value: committeeSession.id } : undefined),
       },
     } as any;
 
-    const deleteRes = await (deleteRoute.DELETE as any)(req, { id: paymentId });
+    const deleteRes = await (deleteRoute.DELETE as any)(req, { params: Promise.resolve({ id: paymentId }) });
     expect(deleteRes.status).toBe(200);
     const deleteResult = await deleteRes.json();
     expect(deleteResult.success).toBe(true);
 
     // Verify payment is soft-deleted in DB
     const deletedPayment = db
-      .prepare('SELECT * FROM contributions WHERE id = ?')
+      .prepare('SELECT * FROM target_payments WHERE id = ?')
       .get(paymentId) as any;
     expect(deletedPayment.deleted_at).not.toBeNull();
 

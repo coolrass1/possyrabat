@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
-import { createMeeting, getAllMeetings } from '@/lib/meetings';
+import { createMeeting, getAllMeetings, isMeetingStatus } from '@/lib/meetings';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,16 +39,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden - committee only' }, { status: 403 });
     }
 
-    const { date, title, notes, attendees } = await request.json();
+    const { date, title, notes, location, agenda, description, status, attendees } =
+      await request.json();
 
     if (!date || !title || !attendees) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    if (status !== undefined && status !== null && !isMeetingStatus(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
     const meeting = await createMeeting({
       date,
       title,
       notes: notes || null,
+      location: location || null,
+      agenda: agenda || null,
+      description: description || null,
+      status: status || 'Planned',
       attendees,
       created_by: member.id,
     });

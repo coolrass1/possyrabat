@@ -2,42 +2,67 @@
 
 import { randomUUID } from 'crypto';
 import db from './db';
-import { Meeting, MeetingDecision, MeetingAction } from './types';
+import { Meeting, MeetingStatus, MeetingDecision, MeetingAction } from './types';
+
+const MEETING_STATUSES: MeetingStatus[] = ['Planned', 'Completed', 'Cancelled'];
+
+export function isMeetingStatus(value: unknown): value is MeetingStatus {
+  return typeof value === 'string' && MEETING_STATUSES.includes(value as MeetingStatus);
+}
+
+function rowToMeeting(row: any): Meeting {
+  return {
+    id: row.id,
+    date: row.date,
+    title: row.title,
+    notes: row.notes ?? null,
+    location: row.location ?? null,
+    agenda: row.agenda ?? null,
+    description: row.description ?? null,
+    status: (row.status as MeetingStatus) ?? 'Planned',
+    attendees: JSON.parse(row.attendees),
+    created_by: row.created_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
 
 export async function createMeeting(data: {
   date: number;
   title: string;
   notes: string | null;
+  location?: string | null;
+  agenda?: string | null;
+  description?: string | null;
+  status?: MeetingStatus;
   attendees: string[];
   created_by: string;
 }): Promise<Meeting> {
   const id = randomUUID();
   const now = Date.now();
+  const status: MeetingStatus = data.status ?? 'Planned';
 
   db.prepare(`
-    INSERT INTO meetings (id, date, title, notes, attendees, created_by, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO meetings (id, date, title, notes, location, agenda, description, status, attendees, created_by, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.date,
     data.title,
     data.notes,
+    data.location ?? null,
+    data.agenda ?? null,
+    data.description ?? null,
+    status,
     JSON.stringify(data.attendees),
     data.created_by,
     now,
     now
   );
 
-  return {
-    id,
-    date: data.date,
-    title: data.title,
-    notes: data.notes,
-    attendees: data.attendees,
-    created_by: data.created_by,
-    created_at: now,
-    updated_at: now,
-  };
+  return rowToMeeting(
+    db.prepare('SELECT * FROM meetings WHERE id = ?').get(id)
+  );
 }
 
 export async function getMeeting(meetingId: string): Promise<Meeting | null> {
@@ -47,16 +72,53 @@ export async function getMeeting(meetingId: string): Promise<Meeting | null> {
 
   if (!row) return null;
 
-  return {
-    id: row.id,
-    date: row.date,
-    title: row.title,
-    notes: row.notes,
-    attendees: JSON.parse(row.attendees),
-    created_by: row.created_by,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+  return rowToMeeting(row);
+}
+
+export async function updateMeeting(
+  meetingId: string,
+  data: {
+    title?: string;
+    date?: number;
+    notes?: string | null;
+    location?: string | null;
+    agenda?: string | null;
+    description?: string | null;
+    status?: MeetingStatus;
+    attendees?: string[];
+  }
+): Promise<Meeting | null> {
+  const existing = db.prepare(
+    'SELECT * FROM meetings WHERE id = ? AND deleted_at IS NULL'
+  ).get(meetingId) as any;
+  if (!existing) return null;
+
+  const fields: string[] = [];
+  const values: any[] = [];
+  const setField = (col: string, value: any) => {
+    fields.push(`${col} = ?`);
+    values.push(value);
   };
+
+  if (data.title !== undefined) setField('title', data.title);
+  if (data.date !== undefined) setField('date', data.date);
+  if (data.notes !== undefined) setField('notes', data.notes);
+  if (data.location !== undefined) setField('location', data.location);
+  if (data.agenda !== undefined) setField('agenda', data.agenda);
+  if (data.description !== undefined) setField('description', data.description);
+  if (data.status !== undefined) setField('status', data.status);
+  if (data.attendees !== undefined) setField('attendees', JSON.stringify(data.attendees));
+
+  setField('updated_at', Date.now());
+
+  db.prepare(`UPDATE meetings SET ${fields.join(', ')} WHERE id = ?`).run(
+    ...values,
+    meetingId
+  );
+
+  return rowToMeeting(
+    db.prepare('SELECT * FROM meetings WHERE id = ?').get(meetingId)
+  );
 }
 
 export async function addDecision(data: {
@@ -167,14 +229,5 @@ export async function getAllMeetings(): Promise<Meeting[]> {
     ORDER BY date DESC
   `).all() as any[];
 
-  return rows.map((row) => ({
-    id: row.id,
-    date: row.date,
-    title: row.title,
-    notes: row.notes,
-    attendees: JSON.parse(row.attendees),
-    created_by: row.created_by,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  }));
+  return rows.map(rowToMeeting);
 }

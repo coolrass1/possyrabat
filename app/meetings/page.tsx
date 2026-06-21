@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Meeting, MeetingDecision, MeetingAction, MeetingDocument } from '@/lib/types';
+import { Meeting, MeetingStatus, MeetingDecision, MeetingAction, MeetingDocument } from '@/lib/types';
 import { 
   Calendar, 
   Users, 
@@ -45,7 +45,11 @@ export default function MeetingsPage() {
   const [meetingForm, setMeetingForm] = useState({
     title: '',
     date: new Date().toISOString().slice(0, 16), // datetime-local
+    location: '',
+    agenda: '',
     notes: '',
+    description: '',
+    status: 'Planned' as MeetingStatus,
   });
   
   const [documents, setDocuments] = useState<MeetingDocument[]>([]);
@@ -97,14 +101,26 @@ export default function MeetingsPage() {
         body: JSON.stringify({
           title: meetingForm.title,
           date: new Date(meetingForm.date).getTime(),
+          location: meetingForm.location || null,
+          agenda: meetingForm.agenda || null,
           notes: meetingForm.notes || null,
+          description: meetingForm.description || null,
+          status: meetingForm.status,
           attendees: [],
         }),
       });
       if (res.ok) {
         const created = await res.json();
         setMeetings([created, ...meetings]);
-        setMeetingForm({ title: '', date: new Date().toISOString().slice(0, 16), notes: '' });
+        setMeetingForm({
+          title: '',
+          date: new Date().toISOString().slice(0, 16),
+          location: '',
+          agenda: '',
+          notes: '',
+          description: '',
+          status: 'Planned',
+        });
         setShowCreateForm(false);
         selectMeeting(created);
       }
@@ -130,6 +146,24 @@ export default function MeetingsPage() {
       }
     } catch (err) {
       console.error('Error fetching meeting details:', err);
+    }
+  };
+
+  const updateMeetingStatus = async (status: MeetingStatus) => {
+    if (!selectedMeeting) return;
+    try {
+      const res = await fetch(`/api/meetings/${selectedMeeting.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSelectedMeeting(updated);
+        setMeetings(meetings.map((m) => (m.id === updated.id ? updated : m)));
+      }
+    } catch (err) {
+      console.error('Error updating meeting status:', err);
     }
   };
 
@@ -240,6 +274,25 @@ export default function MeetingsPage() {
     });
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'Planned': return t('meetings.statusPlanned');
+      case 'Completed': return t('meetings.statusCompleted');
+      case 'Cancelled': return t('meetings.statusCancelled');
+      default: return status;
+    }
+  };
+
+  const STATUS_BADGES: Record<string, 'brass' | 'moss' | 'secondary'> = {
+    Planned: 'brass',
+    Completed: 'moss',
+    Cancelled: 'secondary',
+  };
+
+  const now = Date.now();
+  const upcomingMeetings = meetings.filter((m) => m.date >= now);
+  const pastMeetings = meetings.filter((m) => m.date < now);
+
   const getDocKindLabel = (kind: string) => {
     switch (kind.toLowerCase()) {
       case 'report': return t('meetings.reportPaperOption');
@@ -312,14 +365,57 @@ export default function MeetingsPage() {
                     onChange={(e) => setMeetingForm({ ...meetingForm, date: e.target.value })}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="meeting-location">{t('meetings.locationLabel')}</Label>
+                  <Input
+                    id="meeting-location"
+                    value={meetingForm.location}
+                    onChange={(e) => setMeetingForm({ ...meetingForm, location: e.target.value })}
+                    placeholder={t('meetings.locationPlaceholder')}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="meeting-status">{t('meetings.statusLabel')}</Label>
+                  <Select
+                    id="meeting-status"
+                    value={meetingForm.status}
+                    onChange={(e) =>
+                      setMeetingForm({ ...meetingForm, status: e.target.value as MeetingStatus })
+                    }
+                  >
+                    <option value="Planned">{t('meetings.statusPlanned')}</option>
+                    <option value="Completed">{t('meetings.statusCompleted')}</option>
+                    <option value="Cancelled">{t('meetings.statusCancelled')}</option>
+                  </Select>
+                </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="meeting-notes">{t('meetings.agendaOptionalLabel')}</Label>
+                  <Label htmlFor="meeting-agenda">{t('meetings.agendaOptionalLabel')}</Label>
+                  <Textarea
+                    id="meeting-agenda"
+                    value={meetingForm.agenda}
+                    onChange={(e) => setMeetingForm({ ...meetingForm, agenda: e.target.value })}
+                    rows={3}
+                    placeholder="e.g. Legal update overview, contribution arrears..."
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="meeting-description">{t('meetings.descriptionLabel')}</Label>
+                  <Textarea
+                    id="meeting-description"
+                    value={meetingForm.description}
+                    onChange={(e) => setMeetingForm({ ...meetingForm, description: e.target.value })}
+                    rows={2}
+                    placeholder={t('meetings.descriptionPlaceholder')}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="meeting-notes">{t('meetings.agenda')}</Label>
                   <Textarea
                     id="meeting-notes"
                     value={meetingForm.notes}
                     onChange={(e) => setMeetingForm({ ...meetingForm, notes: e.target.value })}
-                    rows={3}
-                    placeholder="e.g. Legal update overview, contribution arrears..."
+                    rows={2}
+                    placeholder="e.g. Free-form notes..."
                   />
                 </div>
                 <div className="md:col-span-2 pt-2">
@@ -345,29 +441,44 @@ export default function MeetingsPage() {
             </CardHeader>
             <CardContent className="pt-4 px-2">
               {meetings.length > 0 ? (
-                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
-                  {meetings.map((meeting) => (
-                    <button
-                       key={meeting.id}
-                      onClick={() => selectMeeting(meeting)}
-                      className={`w-full text-left p-3 rounded-lg transition-all duration-300 flex items-center justify-between gap-3 border ${
-                        selectedMeeting?.id === meeting.id
-                          ? 'bg-[#7C9A5E] text-white border-transparent shadow-md transform scale-[1.02]'
-                          : 'bg-[#f9f5f0] text-[#16291F] border-[#e8dcc8]/40 hover:bg-[#e8dcc8]/35'
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-sm truncate">{meeting.title}</p>
-                        <p className="text-[10px] opacity-80 mt-1 flex items-center gap-1 font-mono">
-                          <Calendar className="h-3 w-3 shrink-0" />
-                          {formatDate(meeting.date)}
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                  {([
+                    { label: t('meetings.upcomingTitle'), list: upcomingMeetings },
+                    { label: t('meetings.pastTitle'), list: pastMeetings },
+                  ] as const).map((group) =>
+                    group.list.length > 0 ? (
+                      <div key={group.label} className="space-y-1.5">
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-[#7C9A5E] px-1">
+                          {group.label}
                         </p>
+                        {group.list.map((meeting) => (
+                          <button
+                            key={meeting.id}
+                            onClick={() => selectMeeting(meeting)}
+                            className={`w-full text-left p-3 rounded-lg transition-all duration-300 flex items-center justify-between gap-3 border ${
+                              selectedMeeting?.id === meeting.id
+                                ? 'bg-[#7C9A5E] text-white border-transparent shadow-md transform scale-[1.02]'
+                                : 'bg-[#f9f5f0] text-[#16291F] border-[#e8dcc8]/40 hover:bg-[#e8dcc8]/35'
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-sm truncate">{meeting.title}</p>
+                              <p className="text-[10px] opacity-80 mt-1 flex items-center gap-1 font-mono">
+                                <Calendar className="h-3 w-3 shrink-0" />
+                                {formatDate(meeting.date)}
+                              </p>
+                            </div>
+                            <Badge
+                              variant={STATUS_BADGES[meeting.status] || 'secondary'}
+                              className="text-[10px] shrink-0 font-mono"
+                            >
+                              {getStatusLabel(meeting.status)}
+                            </Badge>
+                          </button>
+                        ))}
                       </div>
-                      <Badge variant={selectedMeeting?.id === meeting.id ? 'default' : 'secondary'} className="text-[10px] shrink-0 font-mono">
-                        {meeting.attendees.length} {t('meetings.membersSuffix')}
-                      </Badge>
-                    </button>
-                  ))}
+                    ) : null
+                  )}
                 </div>
               ) : (
                 <div className="py-8 text-center text-[#7C9A5E] space-y-2">
@@ -385,15 +496,59 @@ export default function MeetingsPage() {
               {/* Selected Meeting Info */}
               <Card>
                 <CardHeader className="bg-[#f3ecdd] border-b border-[#e8dcc8] py-4">
-                  <CardTitle className="font-serif text-2xl text-[#16291F]">{selectedMeeting.title}</CardTitle>
-                  <CardDescription className="text-xs text-[#7C9A5E] mt-1 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" /> {formatDate(selectedMeeting.date)}
+                  <div className="flex items-start justify-between gap-3">
+                    <CardTitle className="font-serif text-2xl text-[#16291F]">{selectedMeeting.title}</CardTitle>
+                    <Badge
+                      variant={STATUS_BADGES[selectedMeeting.status] || 'secondary'}
+                      className="text-[10px] shrink-0 font-mono"
+                    >
+                      {getStatusLabel(selectedMeeting.status)}
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs text-[#7C9A5E] mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" /> {formatDate(selectedMeeting.date)}
+                    </span>
+                    {selectedMeeting.location && (
+                      <span className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" /> {selectedMeeting.location}
+                      </span>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-4">
-                  {selectedMeeting.notes && (
+                  {userRole !== 'member' && (
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="meeting-status-update" className="text-[#7C9A5E] font-bold whitespace-nowrap mb-0">
+                        {t('meetings.updateStatusLabel')}
+                      </Label>
+                      <Select
+                        id="meeting-status-update"
+                        value={selectedMeeting.status}
+                        onChange={(e) => updateMeetingStatus(e.target.value as MeetingStatus)}
+                        className="max-w-[200px]"
+                      >
+                        <option value="Planned">{t('meetings.statusPlanned')}</option>
+                        <option value="Completed">{t('meetings.statusCompleted')}</option>
+                        <option value="Cancelled">{t('meetings.statusCancelled')}</option>
+                      </Select>
+                    </div>
+                  )}
+                  {selectedMeeting.description && (
+                    <div className="bg-[#e8dcc8]/20 p-4 rounded-lg border border-[#e8dcc8]/40">
+                      <Label className="text-[#16291f] font-extrabold mb-1">{t('meetings.description')}</Label>
+                      <p className="text-[#16291F] text-sm leading-relaxed">{selectedMeeting.description}</p>
+                    </div>
+                  )}
+                  {selectedMeeting.agenda && (
                     <div className="bg-[#e8dcc8]/20 p-4 rounded-lg border border-[#e8dcc8]/40">
                       <Label className="text-[#16291f] font-extrabold mb-1">{t('meetings.agenda')}</Label>
+                      <p className="text-[#16291F] text-sm leading-relaxed">{selectedMeeting.agenda}</p>
+                    </div>
+                  )}
+                  {selectedMeeting.notes && (
+                    <div className="bg-[#e8dcc8]/20 p-4 rounded-lg border border-[#e8dcc8]/40">
+                      <Label className="text-[#16291f] font-extrabold mb-1">{t('meetings.notesLabel')}</Label>
                       <p className="text-[#16291F] text-sm leading-relaxed">{selectedMeeting.notes}</p>
                     </div>
                   )}

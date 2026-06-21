@@ -286,6 +286,20 @@ export interface TranslationSchema {
     maxSizeNotice: string;
     noConvocationsSelected: string;
     chooseConvocationDesc: string;
+    locationLabel: string;
+    locationPlaceholder: string;
+    descriptionLabel: string;
+    descriptionPlaceholder: string;
+    statusLabel: string;
+    statusPlanned: string;
+    statusCompleted: string;
+    statusCancelled: string;
+    location: string;
+    description: string;
+    upcomingTitle: string;
+    pastTitle: string;
+    updateStatusLabel: string;
+    notesLabel: string;
   };
   rules: {
     title: string;

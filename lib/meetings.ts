@@ -4,12 +4,6 @@ import { randomUUID } from 'crypto';
 import db from './db';
 import { Meeting, MeetingStatus, MeetingDecision, MeetingAction } from './types';
 
-const MEETING_STATUSES: MeetingStatus[] = ['Planned', 'Completed', 'Cancelled'];
-
-export function isMeetingStatus(value: unknown): value is MeetingStatus {
-  return typeof value === 'string' && MEETING_STATUSES.includes(value as MeetingStatus);
-}
-
 function rowToMeeting(row: any): Meeting {
   return {
     id: row.id,

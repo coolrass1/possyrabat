@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
-import { createMeeting, getAllMeetings, isMeetingStatus } from '@/lib/meetings';
+import { createMeeting, getAllMeetings } from '@/lib/meetings';
+import { isMeetingStatus } from '@/lib/meeting-status';
 
 export async function GET(request: NextRequest) {
   try {

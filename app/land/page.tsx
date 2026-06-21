@@ -34,6 +34,19 @@ interface AllHoldings {
   total_m2: number;
 }
 
+interface LandHolding {
+  land: { id: string; name: string; reference: string | null; area: number };
+  shares: number;
+  ownership_percentage: number;
+  surface: number;
+}
+
+interface LandOverview {
+  total_area: number;
+  total_shares: number;
+  parcels: { id: string; name: string; reference: string | null; area: number }[];
+}
+
 export default function LandPage() {
   const router = useRouter();
   const { t } = useLanguage();
@@ -41,6 +54,8 @@ export default function LandPage() {
   const [holdings, setHoldings] = useState<Holdings | null>(null);
   const [member, setMember] = useState<Member | null>(null);
   const [allHoldings, setAllHoldings] = useState<AllHoldings[]>([]);
+  const [landHoldings, setLandHoldings] = useState<LandHolding[]>([]);
+  const [landOverview, setLandOverview] = useState<LandOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -67,6 +82,16 @@ export default function LandPage() {
         const allRes = await fetch('/api/parcel-holdings/all');
         if (allRes.ok) {
           setAllHoldings(await allRes.json());
+        }
+
+        const landHoldingsRes = await fetch('/api/land/my-holdings');
+        if (landHoldingsRes.ok) {
+          setLandHoldings(await landHoldingsRes.json());
+        }
+
+        const overviewRes = await fetch('/api/land/overview');
+        if (overviewRes.ok) {
+          setLandOverview(await overviewRes.json());
         }
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -202,6 +227,76 @@ export default function LandPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Shares-based land (derived surface & percentage) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <Card className="flex flex-col">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Square className="h-5 w-5 text-[#7C9A5E]" />
+                <CardTitle className="font-serif">{t('land.myLandHoldings')}</CardTitle>
+              </div>
+              <CardDescription>{t('land.myLandHoldingsDesc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {landHoldings.length === 0 ? (
+                <p className="text-sm text-[#7C9A5E]">{t('land.noLandHoldings')}</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('land.memberHeader')}</TableHead>
+                      <TableHead className="text-right">{t('land.shares')}</TableHead>
+                      <TableHead className="text-right">{t('land.percentage')}</TableHead>
+                      <TableHead className="text-right">{t('land.surface')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {landHoldings.map((h) => (
+                      <TableRow key={h.land.id}>
+                        <TableCell>
+                          <div className="font-semibold text-[#16291F]">{h.land.name}</div>
+                          {h.land.reference && (
+                            <div className="text-xs text-[#7C9A5E] mt-0.5">{h.land.reference}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">{h.shares}</TableCell>
+                        <TableCell className="text-right font-mono">{h.ownership_percentage}%</TableCell>
+                        <TableCell className="text-right font-mono font-bold text-[#C79A45]">
+                          {h.surface.toLocaleString()} m²
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {landOverview && (
+            <Card className="flex flex-col justify-between">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Layers className="h-5 w-5 text-[#C79A45]" />
+                  <CardTitle className="font-serif">{t('land.coopLandTitle')}</CardTitle>
+                </div>
+                <CardDescription>{t('land.coopLandDesc')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-[#e8dcc8]/30 p-4 rounded-lg text-center">
+                    <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider">{t('land.totalArea')}</span>
+                    <p className="text-2xl font-black text-[#C79A45] font-figure mt-1">{landOverview.total_area.toLocaleString()} m²</p>
+                  </div>
+                  <div className="bg-[#e8dcc8]/30 p-4 rounded-lg text-center">
+                    <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider">{t('land.totalShares')}</span>
+                    <p className="text-2xl font-black text-[#16291F] font-figure mt-1">{landOverview.total_shares}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Member Roster */}

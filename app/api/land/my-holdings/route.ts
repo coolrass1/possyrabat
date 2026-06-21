@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
-import db from '@/lib/db';
+import { getMemberLandHoldings } from '@/lib/land';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,43 +19,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Member not found' }, { status: 404 });
     }
 
-    // Get all land holdings for this member
-    const holdings = db.prepare(`
-      SELECT l.*, lo.shares, lo.id as ownership_id, lo.created_at as ownership_created_at
-      FROM land l
-      JOIN land_ownership lo ON l.id = lo.land_id
-      WHERE lo.member_id = ?
-    `).all(session.member_id) as any[];
+    const holdings = getMemberLandHoldings(session.member_id);
 
     return NextResponse.json(
-      holdings.map((h) => {
-        // Calculate ownership percentage
-        const totalShares = db.prepare(`
-          SELECT COALESCE(SUM(shares), 0) as total FROM land_ownership WHERE land_id = ?
-        `).get(h.id) as { total: number };
-
-        const percentage = totalShares.total > 0 ? (h.shares / totalShares.total) * 100 : 0;
-
-        return {
-          land: {
-            id: h.id,
-            name: h.name,
-            location: h.location,
-            area: h.area,
-            created_at: h.created_at,
-          },
-          shares: h.shares,
-          ownership_percentage: Math.round(percentage * 100) / 100,
-          ownership_id: h.ownership_id,
-          ownership_created_at: h.ownership_created_at,
-        };
-      })
+      holdings.map((h) => ({
+        land: h.land,
+        shares: h.shares,
+        ownership_percentage: h.ownership_percentage,
+        surface: h.surface,
+      }))
     );
   } catch (error) {
     console.error('Get my holdings error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

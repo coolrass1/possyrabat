@@ -204,13 +204,17 @@ export interface MemberObligationRow {
   member_id: string;
   name: string | null;
   email: string;
+  parcel_count: number;
   amount_due: number;
 }
 
 export function listObligations(quarterId: string): MemberObligationRow[] {
-  // Query all members and left join their obligations for the quarter
+  // Query all members and left join their obligations for the quarter.
+  // parcel_count is surfaced as a helper for the admin to sanity-check dues.
   const rows = db.prepare(`
-    SELECT m.id as member_id, m.name, m.email, COALESCE(o.amount_due, 0) as amount_due
+    SELECT m.id as member_id, m.name, m.email,
+           COALESCE(m.parcel_count, 0) as parcel_count,
+           COALESCE(o.amount_due, 0) as amount_due
     FROM members m
     LEFT JOIN member_quarter_obligations o ON m.id = o.member_id AND o.quarter_id = ?
     WHERE m.status = 'active'

@@ -28,6 +28,7 @@ import { Select } from '@/app/components/ui/select';
 import { Badge } from '@/app/components/ui/badge';
 import { Progress } from '@/app/components/ui/progress';
 import { Label } from '@/app/components/ui/label';
+import { formatMoney } from '@/lib/utils';
 
 interface SessionMember {
   id: string;
@@ -79,6 +80,7 @@ interface ObligationRow {
   member_id: string;
   name: string | null;
   email: string;
+  parcel_count: number;
   amount_due: number;
 }
 
@@ -135,6 +137,7 @@ export default function CotisationsPage() {
   const [enabledSections, setEnabledSections] = useState<string[]>([]);
   const [currency, setCurrency] = useState<string>('XOF');
   const [globalTargetInput, setGlobalTargetInput] = useState<string>('0');
+  const [perParcelFee, setPerParcelFee] = useState<number>(0);
 
   // Payment logger form state
   const [paymentForm, setPaymentForm] = useState({
@@ -207,6 +210,9 @@ export default function CotisationsPage() {
             if (settingsData.currency) setCurrency(settingsData.currency);
             if (settingsData.global_target !== undefined) {
               setGlobalTargetInput(String(settingsData.global_target));
+            }
+            if (settingsData.per_parcel_fee !== undefined) {
+              setPerParcelFee(settingsData.per_parcel_fee);
             }
           }
         }
@@ -413,6 +419,7 @@ export default function CotisationsPage() {
 
   const isCommittee = member && member.role !== 'member';
   const isOwner = member && member.role === 'owner';
+  const currencyLabel = formatMoney(0, currency).replace(/[\d\s]/g, '') || currency;
 
   return (
     <div className="min-h-screen bg-[#16291F] pb-16">
@@ -794,7 +801,7 @@ export default function CotisationsPage() {
                     </div>
                     <div className="text-xs text-[#7C9A5E] leading-relaxed">
                       <p>• Dues are set manually for simplicity.</p>
-                      <p>• Recommended formula reference: <strong>Parcel Count × €50 per parcel</strong>.</p>
+                      <p>• Recommended formula reference: <strong>Parcel Count × {formatMoney(perParcelFee, currency)} per parcel</strong>.</p>
                     </div>
                   </div>
 
@@ -805,13 +812,12 @@ export default function CotisationsPage() {
                           <TableHead>Member</TableHead>
                           <TableHead>Parcel count</TableHead>
                           <TableHead>Suggested Obligation</TableHead>
-                          <TableHead className="w-[180px]">Quarterly Obligation (€)</TableHead>
+                          <TableHead className="w-[180px]">Quarterly Obligation ({currencyLabel})</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {obligations.map((o) => {
-                          const mInfo = members.find((mm) => mm.id === o.member_id);
-                          const parcelCount = mInfo ? mInfo.parcel_count : 0;
+                          const parcelCount = o.parcel_count ?? 0;
                           return (
                             <TableRow key={o.member_id} className="hover:bg-[#e8dcc8]/10">
                               <TableCell className="py-3">
@@ -822,7 +828,7 @@ export default function CotisationsPage() {
                                 {parcelCount} parcels
                               </TableCell>
                               <TableCell className="py-3 font-mono text-[#7C9A5E]">
-                                €{eur(parcelCount * 50)} <span className="text-[10px] text-[#7C9A5E]/80">(fee model)</span>
+                                {formatMoney(parcelCount * perParcelFee, currency)} <span className="text-[10px] text-[#7C9A5E]/80">(fee model)</span>
                               </TableCell>
                               <TableCell className="py-2">
                                 <Input

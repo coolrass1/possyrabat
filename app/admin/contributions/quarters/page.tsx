@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/app/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/app/components/ui/table';
@@ -54,6 +54,10 @@ export default function QuartersAdminPage() {
 
   // Individual obligation edits
   const [obligationEdits, setObligationEdits] = useState<Record<string, number>>({});
+
+  // Monthly target rows for the selected quarter: { name, target_amount }
+  const [monthRows, setMonthRows] = useState<Array<{ name: string; target_amount: string }>>([]);
+  const [monthsMessage, setMonthsMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -138,6 +142,7 @@ export default function QuartersAdminPage() {
     setSelectedQuarter(quarter);
     setShowObligationsEditor(true);
     setObligationEdits({});
+    setMonthsMessage(null);
 
     try {
       const res = await fetch(`/api/admin/targets/quarters/${quarter.id}/obligations`);
@@ -148,6 +153,61 @@ export default function QuartersAdminPage() {
     } catch (err) {
       console.error('Fetch obligations error:', err);
       setError('Failed to load obligations');
+    }
+
+    // Load existing monthly targets (if any) for this quarter.
+    try {
+      const res = await fetch(`/api/admin/targets/quarters/${quarter.id}/months`);
+      if (res.ok) {
+        const data = await res.json();
+        const rows = (data.months || []).map((m: { name: string; target_amount: number }) => ({
+          name: m.name,
+          target_amount: String(m.target_amount),
+        }));
+        setMonthRows(rows.length > 0 ? rows : [{ name: '', target_amount: '' }]);
+      } else {
+        setMonthRows([{ name: '', target_amount: '' }]);
+      }
+    } catch (err) {
+      console.error('Fetch months error:', err);
+      setMonthRows([{ name: '', target_amount: '' }]);
+    }
+  };
+
+  // Soft (non-blocking) hint: sum of monthly targets vs the quarterly target.
+  const monthlyTotal = monthRows.reduce((sum, r) => sum + (parseFloat(r.target_amount) || 0), 0);
+  const monthlySumMatches =
+    !selectedQuarter || Math.abs(monthlyTotal - selectedQuarter.target_amount) < 0.01;
+
+  const handleSaveMonths = async () => {
+    if (!selectedQuarter) return;
+    setMonthsMessage(null);
+    setError(null);
+
+    const months = monthRows
+      .filter((r) => r.name.trim() !== '' && r.target_amount !== '')
+      .map((r) => ({ name: r.name.trim(), target_amount: parseFloat(r.target_amount) || 0 }));
+
+    if (months.length === 0) {
+      setError('Add at least one month with a target');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/targets/quarters/${selectedQuarter.id}/months`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ months }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to save monthly targets');
+        return;
+      }
+      setMonthsMessage('Monthly targets saved');
+    } catch (err) {
+      console.error('Save months error:', err);
+      setError('Failed to save monthly targets');
     }
   };
 
@@ -405,6 +465,79 @@ export default function QuartersAdminPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Monthly Targets */}
+              <div className="bg-[#f3ecdd] p-4 rounded-lg space-y-3">
+                <h3 className="font-bold text-[#16291F]">Monthly Targets</h3>
+                <p className="text-xs text-[#7C9A5E]">
+                  Define a global target for each month in this quarter.
+                </p>
+                <div className="space-y-2">
+                  {monthRows.map((row, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <Input
+                        placeholder="Month (e.g. July 2026)"
+                        value={row.name}
+                        onChange={(e) => {
+                          const next = [...monthRows];
+                          next[idx] = { ...next[idx], name: e.target.value };
+                          setMonthRows(next);
+                        }}
+                        className="flex-1 bg-white text-[#16291F]"
+                      />
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Target (€)"
+                        value={row.target_amount}
+                        onChange={(e) => {
+                          const next = [...monthRows];
+                          next[idx] = { ...next[idx], target_amount: e.target.value };
+                          setMonthRows(next);
+                        }}
+                        className="w-40 bg-white text-[#16291F]"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMonthRows(monthRows.filter((_, i) => i !== idx))}
+                        className="h-9"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMonthRows([...monthRows, { name: '', target_amount: '' }])}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Month
+                  </Button>
+                  <Button variant="moss" size="sm" onClick={handleSaveMonths}>
+                    Save Monthly Targets
+                  </Button>
+                </div>
+                {/* Soft, non-blocking validation hint */}
+                {!monthlySumMatches && (
+                  <div className="text-sm text-[#B5532E] flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Heads up: monthly targets sum to €{monthlyTotal.toLocaleString()} but the
+                    quarterly target is €{selectedQuarter.target_amount.toLocaleString()}. You can
+                    still save.
+                  </div>
+                )}
+                {monthlySumMatches && monthlyTotal > 0 && (
+                  <div className="text-sm text-[#7C9A5E]">
+                    Monthly targets match the quarterly target.
+                  </div>
+                )}
+                {monthsMessage && (
+                  <div className="text-sm text-[#7C9A5E]">{monthsMessage}</div>
+                )}
+              </div>
+
               {/* Bulk Assignment */}
               <div className="bg-[#f3ecdd] p-4 rounded-lg space-y-3">
                 <h3 className="font-bold text-[#16291F]">Quick Assign</h3>

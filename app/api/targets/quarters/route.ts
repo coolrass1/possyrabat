@@ -38,8 +38,12 @@ export async function POST(request: NextRequest) {
     const quarter = createQuarter(name, Number(start_date), Number(end_date), Number(target_amount));
     return NextResponse.json(quarter);
   } catch (error: any) {
-    if (String(error?.message || '').includes('UNIQUE')) {
+    const message = String(error?.message || '');
+    if (message.includes('UNIQUE')) {
       return NextResponse.json({ error: 'A quarter with that name already exists' }, { status: 409 });
+    }
+    if (/overlap/i.test(message)) {
+      return NextResponse.json({ error: message }, { status: 400 });
     }
     console.error('Create quarter error:', error);
     return NextResponse.json({ error: 'Failed to create quarter' }, { status: 500 });

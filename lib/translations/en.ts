@@ -223,6 +223,12 @@ export const en: TranslationSchema = {
     behindByLabel: 'Behind by',
     paidInFull: 'Paid in full',
     overpaidByLabel: 'Overpaid by',
+    overpaidLabel: 'overpaid',
+    myImpactTitle: 'My contribution impact',
+    myImpactDesc: 'How your contributions weigh in the cooperative.',
+    myContribution: 'My contribution',
+    shareOfPot: 'Share of collected funds',
+    towardGlobal: 'Toward global target',
   },
   spending: {
     title: 'Spending & Ledger',

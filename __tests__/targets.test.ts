@@ -2,6 +2,7 @@ import db from '@/lib/db';
 import { hashPassword, createSession } from '@/lib/auth';
 import { initializeDb } from '@/lib/db';
 import { seedDefaultQuarters } from './helpers/seedQuarters';
+import { setGlobalTarget } from '@/lib/settings';
 import {
   getOverview,
   getMemberStanding,
@@ -126,6 +127,7 @@ describe('Target-Based Cotisations Module', () => {
     expect(q1Standing.status).toBe('up_to_date');
 
     // Verify global and quarter overview
+    setGlobalTarget(3600000, adminId);
     const overview = getOverview();
     expect(overview.globalTarget).toBe(3600000);
     expect(overview.globalRaised).toBe(1500);
@@ -161,6 +163,7 @@ describe('Targets API Routes', () => {
     ).run(memberId, 'user@example.com', passwordHash, 'Regular User', 'member', now);
 
     const session = createSession(memberId);
+    setGlobalTarget(3600000, memberId);
 
     const { GET: getOverviewRoute } = await import('@/app/api/targets/overview/route');
     const request = {

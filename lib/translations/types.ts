@@ -221,6 +221,12 @@ export interface TranslationSchema {
     behindByLabel: string;
     paidInFull: string;
     overpaidByLabel: string;
+    overpaidLabel: string;
+    myImpactTitle: string;
+    myImpactDesc: string;
+    myContribution: string;
+    shareOfPot: string;
+    towardGlobal: string;
   };
   spending: {
     title: string;

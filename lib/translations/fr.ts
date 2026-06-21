@@ -223,6 +223,12 @@ export const fr: TranslationSchema = {
     behindByLabel: 'En retard de',
     paidInFull: 'Intégralement payé',
     overpaidByLabel: 'Trop-perçu de',
+    overpaidLabel: 'trop-perçu',
+    myImpactTitle: 'Mon impact',
+    myImpactDesc: 'Le poids de vos cotisations dans la coopérative.',
+    myContribution: 'Ma cotisation',
+    shareOfPot: 'Part des fonds collectés',
+    towardGlobal: 'Vers l’objectif global',
   },
   spending: {
     title: 'Dépenses & Comptabilité',

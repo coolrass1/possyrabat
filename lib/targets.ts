@@ -1,5 +1,6 @@
 import db from '@/lib/db';
 import { TargetQuarter, TargetMonth, MemberQuarterObligation, TargetPayment } from '@/lib/types';
+import { getSettings } from '@/lib/settings';
 import { randomBytes } from 'crypto';
 
 function generateId(): string {
@@ -130,7 +131,7 @@ export interface TargetOverview {
 }
 
 export function getOverview(): TargetOverview {
-  const globalTarget = 3600000;
+  const globalTarget = getSettings().global_target;
 
   // Calculate total raised across all target payments (exclude soft-deleted)
   const globalRaised = (db.prepare('SELECT SUM(amount) as total FROM target_payments WHERE quarter_id IS NOT NULL AND deleted_at IS NULL').get() as { total: number | null }).total || 0;
@@ -164,6 +165,32 @@ export interface MemberQuarterStanding {
   balance: number;
   status: 'up_to_date' | 'behind';
   payments: Array<TargetPayment & { month_name: string | null }>;
+}
+
+export interface MemberImpact {
+  lifetime_paid: number;
+  total_collected: number;
+  lifetime_target: number;
+  share_of_pot: number | null; // percent of total collected; null when nothing collected
+  toward_global: number | null; // percent of lifetime target; null when target unset
+}
+
+export function getMemberImpact(memberId: string): MemberImpact {
+  const lifetime_paid = (db
+    .prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM target_payments WHERE member_id = ? AND quarter_id IS NOT NULL AND deleted_at IS NULL')
+    .get(memberId) as { total: number }).total;
+  const total_collected = (db
+    .prepare('SELECT COALESCE(SUM(amount), 0) AS total FROM target_payments WHERE quarter_id IS NOT NULL AND deleted_at IS NULL')
+    .get() as { total: number }).total;
+  const lifetime_target = getSettings().global_target;
+
+  return {
+    lifetime_paid,
+    total_collected,
+    lifetime_target,
+    share_of_pot: total_collected > 0 ? (lifetime_paid / total_collected) * 100 : null,
+    toward_global: lifetime_target > 0 ? (lifetime_paid / lifetime_target) * 100 : null,
+  };
 }
 
 export type MonthStatus = 'completed' | 'partial' | 'pending' | 'overdue';

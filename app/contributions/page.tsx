@@ -42,6 +42,13 @@ interface QuarterBreakdown {
   behind_by: number;
   months: MonthBreakdown[];
 }
+interface MemberImpact {
+  lifetime_paid: number;
+  total_collected: number;
+  lifetime_target: number;
+  share_of_pot: number | null;
+  toward_global: number | null;
+}
 
 interface TargetQuarter {
   id: string;
@@ -101,9 +108,15 @@ export default function ContributionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'my-standing' | 'roster'>('my-standing');
   const [breakdown, setBreakdown] = useState<QuarterBreakdown | null>(null);
+  const [impact, setImpact] = useState<MemberImpact | null>(null);
 
-  // Format a monetary amount as whole euros (rounded, with thousands separators)
-  const eur = (n: number) => Math.round(n).toLocaleString();
+  // Progress percentage helpers: guard divide-by-zero, clamp the bar fill,
+  // and surface the true percentage (with an overpaid note) in text.
+  const pct = (raised: number, target: number): number | null =>
+    target > 0 ? (raised / target) * 100 : null;
+  const barFill = (p: number | null): number => Math.min(100, Math.max(0, p ?? 0));
+  const pctText = (p: number | null): string =>
+    p === null ? '—' : p > 100 ? `${p.toFixed(1)}% — ${t('contributions.overpaidLabel')}` : `${p.toFixed(1)}%`;
 
   // Payment recording form state (committee/owner only)
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -146,6 +159,12 @@ export default function ContributionsPage() {
         if (breakdownRes.ok) {
           const bd = await breakdownRes.json();
           setBreakdown(bd.breakdown);
+        }
+
+        // Fetch personal contribution impact
+        const impactRes = await fetch('/api/targets/my-impact');
+        if (impactRes.ok) {
+          setImpact(await impactRes.json());
         }
 
         // Fetch roster
@@ -317,20 +336,20 @@ export default function ContributionsPage() {
                   <div>
                     <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.raisedContributions')}</span>
                     <p className="text-3xl font-black text-[#16291F] font-figure">
-                      €{eur(overview.globalRaised)}
+                      {formatMoney(overview.globalRaised)}
                     </p>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.coopMilestone')}</span>
                     <p className="text-xl font-bold text-[#C79A45] font-figure">
-                      {t('home.ofGoal').replace('{goal}', eur(overview.globalTarget))}
+                      {t('home.ofGoal').replace('{goal}', formatMoney(overview.globalTarget))}
                     </p>
                   </div>
                 </div>
 
-                <Progress value={(overview.globalRaised / overview.globalTarget) * 100} />
+                <Progress value={barFill(pct(overview.globalRaised, overview.globalTarget))} />
                 <p className="text-right text-[10px] font-mono font-bold text-[#C79A45]">
-                  {((overview.globalRaised / overview.globalTarget) * 100).toFixed(1)}% {t('common.completed')}
+                  {pctText(pct(overview.globalRaised, overview.globalTarget))} {t('common.completed')}
                 </p>
               </CardContent>
             </Card>
@@ -357,21 +376,51 @@ export default function ContributionsPage() {
                     <div>
                       <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.quarterRaised')}</span>
                       <p className="text-3xl font-black text-[#16291F] font-figure">
-                        €{eur(overview.activeQuarter.raised)}
+                        {formatMoney(overview.activeQuarter.raised)}
                       </p>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block">{t('contributions.quarterGoal')}</span>
                       <p className="text-xl font-bold text-[#7C9A5E] font-figure">
-                        {t('home.ofGoal').replace('{goal}', eur(overview.activeQuarter.target_amount))}
+                        {t('home.ofGoal').replace('{goal}', formatMoney(overview.activeQuarter.target_amount))}
                       </p>
                     </div>
                   </div>
 
-                  <Progress value={(overview.activeQuarter.raised / overview.activeQuarter.target_amount) * 100} />
+                  <Progress value={barFill(pct(overview.activeQuarter.raised, overview.activeQuarter.target_amount))} />
                   <p className="text-right text-[10px] font-mono font-bold text-[#7C9A5E]">
-                    {((overview.activeQuarter.raised / overview.activeQuarter.target_amount) * 100).toFixed(1)}% {t('common.completed')}
+                    {pctText(pct(overview.activeQuarter.raised, overview.activeQuarter.target_amount))} {t('common.completed')}
                   </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {impact && (
+              <Card className="border border-[#e8dcc8]/30 shadow-lg bg-[#f3ecdd]">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-[#7C9A5E]" />
+                    <CardTitle className="text-xl font-serif text-[#16291F]">{t('contributions.myImpactTitle')}</CardTitle>
+                  </div>
+                  <CardDescription>{t('contributions.myImpactDesc')}</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center sm:text-left">
+                  <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
+                    <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.myContribution')}</span>
+                    <span className="text-base font-black text-[#C79A45] font-figure">{formatMoney(impact.lifetime_paid)}</span>
+                  </div>
+                  <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
+                    <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.shareOfPot')}</span>
+                    <span className="text-base font-black text-[#16291F] font-figure">
+                      {impact.share_of_pot === null ? '—' : `${impact.share_of_pot.toFixed(1)}%`}
+                    </span>
+                  </div>
+                  <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
+                    <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.towardGlobal')}</span>
+                    <span className="text-base font-black text-[#16291F] font-figure">
+                      {impact.toward_global === null ? '—' : `${impact.toward_global.toFixed(1)}%`}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -488,7 +537,7 @@ export default function ContributionsPage() {
                             {s.status === 'up_to_date' ? t('contributions.statusUpToDate') : t('contributions.statusBehind')}
                           </Badge>
                           <span className={`text-sm font-bold font-mono ${s.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
-                            {s.balance > 0 ? `€${eur(s.balance)}` : s.balance < 0 ? `+€${eur(Math.abs(s.balance))}` : '€0'}
+                            {s.balance > 0 ? `${formatMoney(s.balance)}` : s.balance < 0 ? `+${formatMoney(Math.abs(s.balance))}` : formatMoney(0)}
                           </span>
                         </div>
                       </div>
@@ -496,16 +545,16 @@ export default function ContributionsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-center sm:text-left">
                         <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
                           <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.obligationAmount')}</span>
-                          <span className="text-base font-black text-[#16291F] font-figure">€{eur(s.obligation)}</span>
+                          <span className="text-base font-black text-[#16291F] font-figure">{formatMoney(s.obligation)}</span>
                         </div>
                         <div className="bg-[#e8dcc8]/30 p-3 rounded-lg">
                           <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.paidStandings')}</span>
-                          <span className="text-base font-black text-[#C79A45] font-figure">€{eur(s.paid)}</span>
+                          <span className="text-base font-black text-[#C79A45] font-figure">{formatMoney(s.paid)}</span>
                         </div>
                         <div className="bg-[#e8dcc8]/30 p-3 rounded-lg flex flex-col justify-center">
                           <span className="text-[10px] text-[#7C9A5E] uppercase font-bold tracking-wider block mb-0.5">{t('contributions.discrepancy')}</span>
                           <span className={`text-base font-bold font-mono ${s.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
-                            {s.balance > 0 ? `€${eur(s.balance)}` : s.balance < 0 ? `+€${eur(Math.abs(s.balance))}` : '€0'}
+                            {s.balance > 0 ? `${formatMoney(s.balance)}` : s.balance < 0 ? `+${formatMoney(Math.abs(s.balance))}` : formatMoney(0)}
                           </span>
                         </div>
                       </div>
@@ -532,7 +581,7 @@ export default function ContributionsPage() {
                                       {new Date(p.date_paid).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell className="text-right font-mono font-bold text-[#C79A45] py-2">
-                                      €{eur(p.amount)}
+                                      {formatMoney(p.amount)}
                                     </TableCell>
                                     <TableCell className="capitalize py-2 text-[#16291F]">
                                       {getMethodLabel(p.method)}
@@ -617,10 +666,10 @@ export default function ContributionsPage() {
                             <div className="text-[10px] text-[#7C9A5E] font-mono font-medium">{entry.email}</div>
                           </TableCell>
                           <TableCell className="text-right py-3 font-mono font-semibold">{entry.parcel_count} {t('contributions.parcelsSuffix')}</TableCell>
-                          <TableCell className="text-right py-3 font-mono">€{eur(entry.obligation)}</TableCell>
-                          <TableCell className="text-right py-3 font-mono font-bold text-[#C79A45]">€{eur(entry.paid)}</TableCell>
+                          <TableCell className="text-right py-3 font-mono">{formatMoney(entry.obligation)}</TableCell>
+                          <TableCell className="text-right py-3 font-mono font-bold text-[#C79A45]">{formatMoney(entry.paid)}</TableCell>
                           <TableCell className={`text-right py-3 font-mono font-semibold ${entry.balance > 0 ? 'text-[#B5532E]' : 'text-[#7C9A5E]'}`}>
-                            {entry.balance > 0 ? `€${eur(entry.balance)}` : entry.balance < 0 ? `+€${eur(Math.abs(entry.balance))}` : '€0'}
+                            {entry.balance > 0 ? `${formatMoney(entry.balance)}` : entry.balance < 0 ? `+${formatMoney(Math.abs(entry.balance))}` : formatMoney(0)}
                           </TableCell>
                           <TableCell className="py-3">
                             <Badge variant={entry.status === 'up to date' ? 'moss' : 'clay'} className="font-bold text-[10px]">

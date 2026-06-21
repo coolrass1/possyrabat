@@ -353,6 +353,19 @@ export function initializeDb() {
       FOREIGN KEY (land_id) REFERENCES land(id),
       UNIQUE(member_id, land_id)
     );
+
+    CREATE TABLE IF NOT EXISTS land_documents (
+      id TEXT PRIMARY KEY,
+      land_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      mime_type TEXT,
+      storage_path TEXT NOT NULL,
+      uploaded_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      FOREIGN KEY (land_id) REFERENCES land(id),
+      FOREIGN KEY (uploaded_by) REFERENCES members(id)
+    );
   `);
 
   // Lightweight migrations for columns added after a table's first creation.
@@ -379,6 +392,8 @@ export function initializeDb() {
   addColumn(`ALTER TABLE meetings ADD COLUMN agenda TEXT`);
   addColumn(`ALTER TABLE meetings ADD COLUMN description TEXT`);
   addColumn(`ALTER TABLE meetings ADD COLUMN status TEXT DEFAULT 'Planned'`);
+  addColumn(`ALTER TABLE land ADD COLUMN reference TEXT`);
+  addColumn(`ALTER TABLE land ADD COLUMN description TEXT`);
 
   // Migrate historical contributions to match targets by dates
   try {

@@ -47,3 +47,6 @@ data.db-wal
 
 # Runtime file uploads (map images, receipts, case documents)
 /public/uploads/
+
+# Agent worktrees
+.claude/worktrees/

@@ -120,6 +120,16 @@ export interface TranslationSchema {
     parcelsHeader: string;
     areaHeader: string;
     loading: string;
+    myLandHoldings: string;
+    myLandHoldingsDesc: string;
+    shares: string;
+    surface: string;
+    percentage: string;
+    totalShares: string;
+    coopLandTitle: string;
+    coopLandDesc: string;
+    referenceHeader: string;
+    noLandHoldings: string;
   };
   case: {
     title: string;

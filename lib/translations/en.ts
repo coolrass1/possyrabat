@@ -121,7 +121,17 @@ export const en: TranslationSchema = {
     memberHeader: 'Member',
     parcelsHeader: 'Parcels Held',
     areaHeader: 'Area Share (m²)',
-    loading: 'Loading Land Registry...'
+    loading: 'Loading Land Registry...',
+    myLandHoldings: 'My Land',
+    myLandHoldingsDesc: 'Your shares, with derived surface and percentage',
+    shares: 'Shares',
+    surface: 'Surface',
+    percentage: 'Percentage',
+    totalShares: 'Total Shares',
+    coopLandTitle: 'Cooperative Land Overview',
+    coopLandDesc: 'Total area and shares (derived) across all parcels',
+    referenceHeader: 'Reference',
+    noLandHoldings: 'You do not hold any shares yet.'
   },
   case: {
     title: 'Legal Defense',

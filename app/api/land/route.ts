@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
 import db from '@/lib/db';
-import { randomBytes } from 'crypto';
+import { upsertLand } from '@/lib/land';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { name, location, area } = await request.json();
+    const { id, name, reference, location, area, description } = await request.json();
 
     // Validation
     if (!name || !area) {
@@ -31,22 +31,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Area must be a positive number' }, { status: 400 });
     }
 
-    // Create land
-    const landId = randomBytes(16).toString('hex');
-    const now = Date.now();
-
-    db.prepare(
-      'INSERT INTO land (id, name, location, area, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(landId, name, location || null, area, now);
-
-    const land = db.prepare('SELECT * FROM land WHERE id = ?').get(landId) as any;
+    const land = upsertLand({
+      id: id || undefined,
+      name,
+      reference: reference ?? null,
+      location: location ?? null,
+      area,
+      description: description ?? null,
+    });
 
     return NextResponse.json(
       {
         id: land.id,
         name: land.name,
+        reference: land.reference,
         location: land.location,
         area: land.area,
+        description: land.description,
         created_at: land.created_at,
       },
       { status: 201 }
@@ -78,8 +79,10 @@ export async function GET(request: NextRequest) {
       lands.map((l) => ({
         id: l.id,
         name: l.name,
+        reference: l.reference ?? null,
         location: l.location,
         area: l.area,
+        description: l.description ?? null,
         created_at: l.created_at,
       }))
     );

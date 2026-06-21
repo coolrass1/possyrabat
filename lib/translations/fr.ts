@@ -121,7 +121,17 @@ export const fr: TranslationSchema = {
     memberHeader: 'Membre',
     parcelsHeader: 'Parcelles détenues',
     areaHeader: 'Part de superficie (m²)',
-    loading: 'Chargement du registre foncier...'
+    loading: 'Chargement du registre foncier...',
+    myLandHoldings: 'Mes terrains',
+    myLandHoldingsDesc: 'Vos parts, et la superficie et le pourcentage dérivés',
+    shares: 'Parts',
+    surface: 'Superficie',
+    percentage: 'Pourcentage',
+    totalShares: 'Total des parts',
+    coopLandTitle: 'Aperçu des terrains de la coopérative',
+    coopLandDesc: 'Superficie totale et parts (dérivées) pour toutes les parcelles',
+    referenceHeader: 'Référence',
+    noLandHoldings: 'Vous ne détenez aucune part pour le moment.'
   },
   case: {
     title: 'Défense Juridique',

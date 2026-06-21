@@ -274,3 +274,36 @@ export interface Contribution {
   month_id: string | null;
 }
 
+
+export interface Land {
+  id: string;
+  name: string;
+  reference: string | null;
+  location: string | null;
+  area: number;
+  description: string | null;
+  created_at: number;
+}
+
+export interface LandDocument {
+  id: string;
+  land_id: string;
+  filename: string;
+  mime_type: string | null;
+  storage_path: string;
+  uploaded_by: string;
+  created_at: number;
+}
+
+export interface LandHolding {
+  land: Land;
+  shares: number;
+  ownership_percentage: number;
+  surface: number;
+}
+
+export interface LandOverview {
+  total_area: number;
+  total_shares: number;
+  parcels: Land[];
+}

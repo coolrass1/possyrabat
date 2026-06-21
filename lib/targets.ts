@@ -14,13 +14,90 @@ export function getQuarterById(id: string): TargetQuarter | null {
   return (db.prepare('SELECT * FROM target_quarters WHERE id = ?').get(id) as TargetQuarter) || null;
 }
 
+/**
+ * Pure helper: do two closed date intervals [aStart, aEnd] and [bStart, bEnd]
+ * overlap? Boundaries are inclusive, so quarters that merely touch on a single
+ * timestamp are considered overlapping. Use adjacent (+1ms) boundaries to chain
+ * quarters without overlap.
+ */
+export function quartersOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+  return aStart <= bEnd && bStart <= aEnd;
+}
+
 export function createQuarter(name: string, startDate: number, endDate: number, targetAmount: number): TargetQuarter {
+  // Reject quarters that overlap any existing quarter (acceptance criterion #21).
+  const existing = listQuarters();
+  const clash = existing.find((q) => quartersOverlap(startDate, endDate, q.start_date, q.end_date));
+  if (clash) {
+    throw new Error(`Quarter dates overlap an existing quarter ("${clash.name}")`);
+  }
+
   const id = generateId();
   const now = Date.now();
   db.prepare(
     'INSERT INTO target_quarters (id, name, start_date, end_date, target_amount, created_at) VALUES (?, ?, ?, ?, ?, ?)'
   ).run(id, name, startDate, endDate, targetAmount, now);
   return getQuarterById(id)!;
+}
+
+/**
+ * Deterministic active-quarter resolution:
+ *   1. the quarter whose [start, end] contains `at` (default: now), else
+ *   2. the next upcoming quarter (earliest start strictly after `at`), labeled upcoming, else
+ *   3. the most recent past quarter (latest end before `at`).
+ * Returns null when no quarters exist.
+ */
+export function getActiveQuarter(at: number = Date.now()): (TargetQuarter & { is_upcoming: boolean }) | null {
+  const quarters = listQuarters(); // ordered by start_date ASC
+
+  // 1. containing
+  const containing = quarters.find((q) => at >= q.start_date && at <= q.end_date);
+  if (containing) {
+    return { ...containing, is_upcoming: false };
+  }
+
+  // 2. next upcoming (nearest future start)
+  const upcoming = quarters
+    .filter((q) => q.start_date > at)
+    .sort((a, b) => a.start_date - b.start_date)[0];
+  if (upcoming) {
+    return { ...upcoming, is_upcoming: true };
+  }
+
+  // 3. most recent past (latest end before now)
+  const past = quarters
+    .filter((q) => q.end_date < at)
+    .sort((a, b) => b.end_date - a.end_date)[0];
+  if (past) {
+    return { ...past, is_upcoming: false };
+  }
+
+  return null;
+}
+
+export interface MonthlySumHint {
+  quarterTarget: number;
+  monthlyTotal: number;
+  difference: number; // monthlyTotal - quarterTarget
+  matches: boolean;
+}
+
+/**
+ * Soft, NON-blocking validation hint: do a quarter's monthly targets sum to its
+ * quarterly target? Never throws — callers decide whether to surface the hint.
+ */
+export function checkMonthlySum(quarterId: string): MonthlySumHint {
+  const quarter = getQuarterById(quarterId);
+  const quarterTarget = quarter ? quarter.target_amount : 0;
+  const months = listMonths(quarterId);
+  const monthlyTotal = months.reduce((sum, m) => sum + m.target_amount, 0);
+  const difference = monthlyTotal - quarterTarget;
+  return {
+    quarterTarget,
+    monthlyTotal,
+    difference,
+    matches: Math.abs(difference) < 0.01,
+  };
 }
 
 export function listMonths(quarterId?: string): TargetMonth[] {
@@ -47,6 +124,8 @@ export interface TargetOverview {
   globalTarget: number;
   globalRaised: number;
   activeQuarter: (TargetQuarter & { raised: number }) | null;
+  /** True when the active quarter is a future/upcoming one (no quarter contains today). */
+  activeQuarterUpcoming: boolean;
   quarters: Array<TargetQuarter & { raised: number }>;
 }
 
@@ -63,14 +142,17 @@ export function getOverview(): TargetOverview {
     return { ...q, raised };
   });
   
-  // Find current active quarter
-  const now = Date.now();
-  const activeQuarterRaw = quarters.find((q) => now >= q.start_date && now <= q.end_date) || quarters[0] || null;
+  // Resolve the active quarter deterministically: containing -> upcoming -> most-recent past.
+  const resolved = getActiveQuarter();
+  const activeQuarterRaw = resolved
+    ? quarters.find((q) => q.id === resolved.id) || null
+    : null;
 
   return {
     globalTarget,
     globalRaised,
     activeQuarter: activeQuarterRaw,
+    activeQuarterUpcoming: resolved ? resolved.is_upcoming : false,
     quarters,
   };
 }

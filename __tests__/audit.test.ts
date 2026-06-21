@@ -10,8 +10,9 @@ describe('Audit Logging', () => {
     // Clean up (respect foreign keys)
     db.exec(`
       DELETE FROM audit_log;
-      DELETE FROM contributions;
+
       DELETE FROM expenses;
+      DELETE FROM target_payments;
       DELETE FROM members;
     `);
 
@@ -90,7 +91,7 @@ describe('Audit Logging', () => {
 
       // Simulate contribution creation with audit log
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, notes, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(contribId, memberId, amount, date, 'transfer', 'test', committeeId, now);
 
@@ -124,14 +125,14 @@ describe('Audit Logging', () => {
 
       // Create contribution
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, notes, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(contribId, memberId, 300, now - 10000, 'transfer', 'old', committeeId, now);
 
       // Update it
       const newAmount = 500;
       db.prepare(`
-        UPDATE contributions SET amount = ? WHERE id = ?
+        UPDATE target_payments SET amount = ? WHERE id = ?
       `).run(newAmount, contribId);
 
       // Log the update
@@ -164,13 +165,13 @@ describe('Audit Logging', () => {
 
       // Create contribution
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, notes, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(contribId, memberId, 500, now - 10000, 'transfer', 'test', committeeId, now);
 
       // Soft delete it
       db.prepare(`
-        UPDATE contributions SET deleted_at = ? WHERE id = ?
+        UPDATE target_payments SET deleted_at = ? WHERE id = ?
       `).run(Date.now(), contribId);
 
       // Log the deletion

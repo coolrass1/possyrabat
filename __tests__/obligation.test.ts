@@ -11,7 +11,7 @@ describe('Contribution Obligation', () => {
   });
 
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM target_payments; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM target_payments; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
   });
 
   it('committee sets per-parcel fee in settings; it is retrievable', async () => {
@@ -59,7 +59,7 @@ describe('Contribution Obligation', () => {
 
 describe('My Standing', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM target_payments; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM target_payments; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
     seedDefaultQuarters();
   });
@@ -151,7 +151,7 @@ describe('My Standing', () => {
 
 describe('Arrears List (committee)', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM target_payments; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM target_payments; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
     seedDefaultQuarters();
   });

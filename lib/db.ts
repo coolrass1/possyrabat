@@ -7,6 +7,9 @@ const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
 export function initializeDb() {
+  // The legacy contributions table was retired (#26); all money now lives in
+  // target_payments. Drop it so no stale copy lingers in existing databases.
+  db.exec(`DROP TABLE IF EXISTS contributions;`);
   db.exec(`
     CREATE TABLE IF NOT EXISTS members (
       id TEXT PRIMARY KEY,
@@ -37,24 +40,6 @@ export function initializeDb() {
       uploaded_by TEXT NOT NULL,
       uploaded_at INTEGER NOT NULL,
       FOREIGN KEY (uploaded_by) REFERENCES members(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS contributions (
-      id TEXT PRIMARY KEY,
-      member_id TEXT NOT NULL,
-      amount REAL NOT NULL,
-      date INTEGER NOT NULL,
-      method TEXT,
-      notes TEXT,
-      recorded_by TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      deleted_at INTEGER,
-      quarter_id TEXT,
-      month_id TEXT,
-      FOREIGN KEY (member_id) REFERENCES members(id),
-      FOREIGN KEY (recorded_by) REFERENCES members(id),
-      FOREIGN KEY (quarter_id) REFERENCES target_quarters(id),
-      FOREIGN KEY (month_id) REFERENCES target_months(id)
     );
 
     CREATE TABLE IF NOT EXISTS expenses (
@@ -341,7 +326,7 @@ export function initializeDb() {
       month_id TEXT,
       amount REAL NOT NULL,
       date_paid INTEGER NOT NULL,
-      method TEXT NOT NULL,
+      method TEXT NOT NULL DEFAULT 'other',
       notes TEXT,
       recorded_by TEXT NOT NULL,
       updated_by TEXT,
@@ -406,30 +391,12 @@ export function initializeDb() {
   addColumn(`ALTER TABLE cases ADD COLUMN lawyer_name TEXT`);
   addColumn(`ALTER TABLE cases ADD COLUMN lawyer_contact TEXT`);
   addColumn(`ALTER TABLE case_documents ADD COLUMN mime_type TEXT`);
-  addColumn(`ALTER TABLE contributions ADD COLUMN quarter_id TEXT`);
-  addColumn(`ALTER TABLE contributions ADD COLUMN month_id TEXT`);
   addColumn(`ALTER TABLE meetings ADD COLUMN location TEXT`);
   addColumn(`ALTER TABLE meetings ADD COLUMN agenda TEXT`);
   addColumn(`ALTER TABLE meetings ADD COLUMN description TEXT`);
   addColumn(`ALTER TABLE meetings ADD COLUMN status TEXT DEFAULT 'Planned'`);
   addColumn(`ALTER TABLE land ADD COLUMN reference TEXT`);
   addColumn(`ALTER TABLE land ADD COLUMN description TEXT`);
-
-  // Migrate historical contributions to match targets by dates
-  try {
-    db.exec(`
-      UPDATE contributions
-      SET quarter_id = (
-        SELECT id FROM target_quarters
-        WHERE contributions.date >= target_quarters.start_date
-          AND contributions.date <= target_quarters.end_date
-        LIMIT 1
-      )
-      WHERE quarter_id IS NULL;
-    `);
-  } catch (err) {
-    console.error('Failed to migrate historical contributions:', err);
-  }
 
   // Clean-slate policy: no sample quarters, months, members, or payments are
   // seeded on initialization. The only bootstrap account is created by the

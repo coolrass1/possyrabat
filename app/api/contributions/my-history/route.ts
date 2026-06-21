@@ -28,14 +28,14 @@ export async function GET(request: NextRequest) {
 
     // Get total count (excluding soft-deleted)
     const countResult = db
-      .prepare('SELECT COUNT(*) as count FROM contributions WHERE member_id = ? AND deleted_at IS NULL')
+      .prepare('SELECT COUNT(*) as count FROM target_payments WHERE member_id = ? AND deleted_at IS NULL')
       .get(session.member_id) as any;
     const total = countResult?.count || 0;
 
     // Get contributions (newest first, excluding soft-deleted)
     const items = db
       .prepare(
-        'SELECT * FROM contributions WHERE member_id = ? AND deleted_at IS NULL ORDER BY date DESC LIMIT ? OFFSET ?'
+        'SELECT * FROM target_payments WHERE member_id = ? AND deleted_at IS NULL ORDER BY date_paid DESC LIMIT ? OFFSET ?'
       )
       .all(session.member_id, limit, offset) as any[];
 

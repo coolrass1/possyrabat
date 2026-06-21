@@ -9,10 +9,10 @@ describe('Fund Balance & Allocation', () => {
   });
 
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM expenses; DELETE FROM contributions; DELETE FROM fund_settings; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM target_payments; DELETE FROM expenses; DELETE FROM fund_settings; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
   });
 
-  it('member views fund balance calculated from contributions - expenses', async () => {
+  it('member views fund balance calculated from payments - expenses', async () => {
     const passwordHash = await hashPassword('test123');
     const committeeId = 'committee-1';
     const memberId = 'member-1';
@@ -24,7 +24,7 @@ describe('Fund Balance & Allocation', () => {
     insertMemberStmt.run(memberId, 'alice@example.com', passwordHash, 'Alice', 'member', Date.now());
 
     const insertContribStmt = db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     insertContribStmt.run(randomBytes(8).toString('hex'), memberId, 1000, Date.now(), 'transfer', committeeId, Date.now());
     insertContribStmt.run(randomBytes(8).toString('hex'), memberId, 500, Date.now(), 'transfer', committeeId, Date.now());
@@ -100,7 +100,7 @@ describe('Fund Balance & Allocation', () => {
 
 describe('Fund custodian', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM fund_settings; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM target_payments; DELETE FROM fund_settings; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
   });
 
   it('committee sets custodian; all members can read it', async () => {
@@ -155,7 +155,7 @@ describe('Fund custodian', () => {
 
 describe('Soft-deleted entries excluded from fund totals', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM expenses; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM target_payments; DELETE FROM expenses; DELETE FROM sessions; DELETE FROM members; PRAGMA foreign_keys=ON;');
   });
 
   it('a soft-deleted expense does not count in balance or allocation', async () => {
@@ -167,7 +167,7 @@ describe('Soft-deleted entries excluded from fund totals', () => {
 
     // €1000 in
     db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(randomBytes(8).toString('hex'), 'm-fund', 1000, now, 'transfer', 'm-fund', now, null);
 
     // One live €300 court expense, one soft-deleted €500 construction expense

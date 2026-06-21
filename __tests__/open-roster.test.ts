@@ -11,7 +11,7 @@ describe('Open Roster & Contribution Transparency', () => {
   });
 
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
     seedDefaultQuarters();
   });
@@ -50,7 +50,7 @@ describe('Open Roster & Contribution Transparency', () => {
 
     // Record contributions
     const insertContribStmt = db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at, deleted_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     
     // Alice: €200
@@ -122,7 +122,7 @@ describe('Open Roster & Contribution Transparency', () => {
 
 describe('Open Roster scope & settings fee', () => {
   beforeEach(() => {
-    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM contributions; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
+    db.exec('PRAGMA foreign_keys=OFF; DELETE FROM settings; DELETE FROM sessions; DELETE FROM members; DELETE FROM target_quarters; DELETE FROM target_months; DELETE FROM member_quarter_obligations; PRAGMA foreign_keys=ON;');
     initializeDb();
     seedDefaultQuarters();
   });

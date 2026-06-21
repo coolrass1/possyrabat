@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       const obligation = obResult?.total || 0;
 
       const paidResult = db
-        .prepare('SELECT SUM(amount) as total FROM contributions WHERE member_id = ? AND deleted_at IS NULL')
+        .prepare('SELECT SUM(amount) as total FROM target_payments WHERE member_id = ? AND deleted_at IS NULL')
         .get(member.id) as any;
       const paid = paidResult?.total || 0;
 

@@ -15,8 +15,9 @@ describe('Home Screen - Five Pillars', () => {
       DELETE FROM case_documents;
       DELETE FROM case_steps;
       DELETE FROM cases;
-      DELETE FROM contributions;
+
       DELETE FROM expenses;
+      DELETE FROM target_payments;
       DELETE FROM members;
     `);
 
@@ -89,24 +90,24 @@ describe('Home Screen - Five Pillars', () => {
 
       // Create contributions to offset
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 500, now, committeeId, now);
 
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 500, now, committeeId, now);
 
       // Verify data was inserted
       const expenseCount = db.prepare('SELECT COUNT(*) as count FROM expenses').get() as any;
-      const contributionCount = db.prepare('SELECT COUNT(*) as count FROM contributions').get() as any;
+      const contributionCount = db.prepare('SELECT COUNT(*) as count FROM target_payments').get() as any;
 
       expect(expenseCount.count).toBe(3);
       expect(contributionCount.count).toBe(2);
 
       // Calculate totals
-      const totalContributions = (db.prepare('SELECT SUM(amount) as total FROM contributions WHERE deleted_at IS NULL').get() as any).total || 0;
+      const totalContributions = (db.prepare('SELECT SUM(amount) as total FROM target_payments WHERE deleted_at IS NULL').get() as any).total || 0;
       const totalExpenses = (db.prepare('SELECT SUM(amount) as total FROM expenses WHERE deleted_at IS NULL').get() as any).total || 0;
       const balance = totalContributions - totalExpenses;
 
@@ -134,20 +135,20 @@ describe('Home Screen - Five Pillars', () => {
 
       // Create contribution this month
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 200, monthStart, committeeId, Date.now());
 
       // Create contribution last month
       const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 150, lastMonth, committeeId, Date.now());
 
       // Calculate this month total
       const thisMonthTotal = (db.prepare(
-        'SELECT SUM(amount) as total FROM contributions WHERE date >= ? AND deleted_at IS NULL'
+        'SELECT SUM(amount) as total FROM target_payments WHERE date_paid >= ? AND deleted_at IS NULL'
       ).get(monthStart) as any).total || 0;
 
       expect(thisMonthTotal).toBe(200);
@@ -160,7 +161,7 @@ describe('Home Screen - Five Pillars', () => {
 
       // Create contributions
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 1000, now, committeeId, now);
 
@@ -199,17 +200,17 @@ describe('Home Screen - Five Pillars', () => {
 
       // This month: 200 + 50
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 200, monthStart, committeeId, monthStart);
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 50, Date.now(), committeeId, Date.now());
 
       // Last month: should be excluded
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 999, lastMonth, committeeId, lastMonth);
 
@@ -255,7 +256,7 @@ describe('Home Screen - Five Pillars', () => {
 
       // Contribution (middle)
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId, 500, twoHoursAgo, committeeId, twoHoursAgo);
 

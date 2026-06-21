@@ -77,8 +77,8 @@ export async function getCampaignProgress(id: string): Promise<CampaignProgress>
   const until = campaign.deadline ?? Number.MAX_SAFE_INTEGER;
   const row = db.prepare(`
     SELECT COALESCE(SUM(amount), 0) as total
-    FROM contributions
-    WHERE deleted_at IS NULL AND date >= ? AND date <= ?
+    FROM target_payments
+    WHERE deleted_at IS NULL AND date_paid >= ? AND date_paid <= ?
   `).get(campaign.created_at, until) as any;
 
   const raised = row.total || 0;

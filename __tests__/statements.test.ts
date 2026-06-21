@@ -14,7 +14,9 @@ describe('Statements', () => {
       DELETE FROM statements;
       DELETE FROM email_logs;
       DELETE FROM expenses;
-      DELETE FROM contributions;
+
+      DELETE FROM target_payments;
+
       DELETE FROM members;
     `);
 
@@ -51,12 +53,12 @@ describe('Statements', () => {
       const monthEnd = new Date(year, month + 1, 1).getTime();
 
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, notes, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId1, 100, monthStart + 1000, 'transfer', 'contrib', committeeId, monthStart);
 
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, notes, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId2, 200, monthStart + 2000, 'transfer', 'contrib', committeeId, monthStart);
 
@@ -128,7 +130,7 @@ describe('Statements', () => {
       const monthStart = new Date(year, month, 1).getTime();
 
       db.prepare(`
-        INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at)
+        INSERT INTO target_payments (id, member_id, amount, date_paid, method, notes, recorded_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(randomUUID(), memberId1, 100, monthStart + 1000, 'transfer', 'test', committeeId, monthStart);
 

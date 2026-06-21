@@ -263,19 +263,6 @@ export interface TargetPayment {
   deleted_at: number | null;
 }
 
-export interface Contribution {
-  id: string;
-  member_id: string;
-  amount: number;
-  date: number;
-  method: string | null;
-  notes: string | null;
-  recorded_by: string;
-  created_at: number;
-  deleted_at: number | null;
-  quarter_id: string | null;
-  month_id: string | null;
-}
 
 
 export interface Land {

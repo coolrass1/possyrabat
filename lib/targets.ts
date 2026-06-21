@@ -361,7 +361,7 @@ export function setObligation(memberId: string, quarterId: string, amountDue: nu
 
 export function recordPayment(
   memberId: string,
-  quarterId: string,
+  quarterId: string | null,
   monthId: string | null,
   amount: number,
   datePaid: number,

@@ -19,7 +19,7 @@ function resetTargets() {
     DELETE FROM target_quarters;
     DELETE FROM target_months;
     DELETE FROM member_quarter_obligations;
-    DELETE FROM contributions;
+
     PRAGMA foreign_keys=ON;
   `);
 }

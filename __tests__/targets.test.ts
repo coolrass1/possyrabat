@@ -27,7 +27,7 @@ describe('Target-Based Cotisations Module', () => {
       DELETE FROM target_quarters;
       DELETE FROM target_months;
       DELETE FROM member_quarter_obligations;
-      DELETE FROM contributions;
+
       DELETE FROM target_payments;
       PRAGMA foreign_keys=ON;
     `);
@@ -43,36 +43,6 @@ describe('Target-Based Cotisations Module', () => {
 
     const months = listMonths();
     expect(months.length).toBeGreaterThanOrEqual(18); // 6 quarters * 3 months = 18 months
-  });
-
-  it('automatically migrates historical contributions without a quarter to the correct target quarter based on transaction date', async () => {
-    const passwordHash = await hashPassword('password123');
-    const adminId = 'admin-user';
-    const memberId = 'member-john';
-    const now = Date.now();
-
-    // Insert admin and member
-    db.prepare(
-      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(adminId, 'admin@example.com', passwordHash, 'Admin', 'committee', now);
-    db.prepare(
-      'INSERT INTO members (id, email, password_hash, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(memberId, 'john@example.com', passwordHash, 'John Doe', 'member', now);
-
-    // July 2026 is inside Q3 2026
-    const july2026Time = 1783000000000;
-    db.prepare(`
-      INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run('hist-contrib-1', memberId, 500, july2026Time, 'cash', 'Pre-existing payment', adminId, now);
-
-    // Call initializeDb() which triggers migration
-    initializeDb();
-    seedDefaultQuarters();
-
-    // Query database to see if the contribution's quarter_id got updated
-    const updated = db.prepare('SELECT quarter_id FROM contributions WHERE id = ?').get('hist-contrib-1') as { quarter_id: string | null };
-    expect(updated.quarter_id).toBe('q3-2026');
   });
 
   it('sets obligations and records payments; updates overview and member standings', async () => {
@@ -145,7 +115,7 @@ describe('Targets API Routes', () => {
       DELETE FROM target_quarters;
       DELETE FROM target_months;
       DELETE FROM member_quarter_obligations;
-      DELETE FROM contributions;
+
       DELETE FROM target_payments;
       PRAGMA foreign_keys=ON;
     `);

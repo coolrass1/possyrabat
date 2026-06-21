@@ -17,7 +17,7 @@ export async function generateStatement(year: number, month: number): Promise<St
   // Get contributions for the month
   const contributions = db
     .prepare(
-      'SELECT member_id, amount FROM contributions WHERE date >= ? AND date < ? AND deleted_at IS NULL'
+      'SELECT member_id, amount FROM target_payments WHERE date_paid >= ? AND date_paid < ? AND deleted_at IS NULL'
     )
     .all(monthStart, monthEnd) as any[];
 

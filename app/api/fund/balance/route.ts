@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate total contributions
     const totalInResult = db
-      .prepare('SELECT SUM(amount) as total FROM contributions WHERE deleted_at IS NULL')
+      .prepare('SELECT SUM(amount) as total FROM target_payments WHERE deleted_at IS NULL')
       .get() as any;
     const total_in = totalInResult?.total || 0;
 

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionById, getMemberById } from '@/lib/auth';
-import { createAuditLog } from '@/lib/audit';
+import { recordPayment } from '@/lib/targets';
 import db from '@/lib/db';
-import { randomBytes } from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,42 +42,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Member not found' }, { status: 404 });
     }
 
-    // Record contribution
-    const contribId = randomBytes(16).toString('hex');
-    const now = Date.now();
-
-    // Auto-match quarter based on date
+    // Auto-match the quarter from the payment date, then record into target_payments.
     const targetQ = db.prepare('SELECT id FROM target_quarters WHERE ? >= start_date AND ? <= end_date LIMIT 1').get(date, date) as { id: string } | undefined;
-    const quarter_id = targetQ ? targetQ.id : null;
-
-    const insertStmt = db.prepare(
-      'INSERT INTO contributions (id, member_id, amount, date, method, notes, recorded_by, created_at, quarter_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    const payment = recordPayment(
+      member_id,
+      targetQ ? targetQ.id : null,
+      null,
+      amount,
+      date,
+      method || 'other',
+      notes || null,
+      member.id
     );
-    insertStmt.run(contribId, member_id, amount, date, method || null, notes || null, member.id, now, quarter_id);
 
-    // Log to audit trail
-    await createAuditLog({
-      entity_type: 'contribution',
-      entity_id: contribId,
-      action: 'created',
-      before_values: null,
-      after_values: { member_id, amount, date, method: method || null, notes: notes || null },
-      performed_by: member.id,
-    });
-
-    return NextResponse.json(
-      {
-        id: contribId,
-        member_id,
-        amount,
-        date,
-        method,
-        notes,
-        recorded_by: member.id,
-        created_at: now,
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ ...payment, date: payment.date_paid }, { status: 201 });
   } catch (error) {
     console.error('Contribution record error:', error);
     return NextResponse.json(

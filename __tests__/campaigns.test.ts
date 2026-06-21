@@ -13,7 +13,9 @@ describe('Campaigns', () => {
   beforeEach(() => {
     db.exec(`
       DELETE FROM campaigns;
-      DELETE FROM contributions;
+
+      DELETE FROM target_payments;
+
       DELETE FROM members;
     `);
     committeeId = randomUUID();
@@ -60,7 +62,7 @@ describe('Campaigns', () => {
 
       const contribute = (amount: number, date: number) =>
         db.prepare(`
-          INSERT INTO contributions (id, member_id, amount, date, method, recorded_by, created_at)
+          INSERT INTO target_payments (id, member_id, amount, date_paid, method, recorded_by, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `).run(randomUUID(), committeeId, amount, date, 'cash', committeeId, date);
 

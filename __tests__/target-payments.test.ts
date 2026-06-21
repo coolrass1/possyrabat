@@ -27,7 +27,7 @@ describe('Target payments', () => {
     db.exec(`
       PRAGMA foreign_keys=OFF;
       DELETE FROM target_payments;
-      DELETE FROM contributions;
+
       DELETE FROM member_quarter_obligations;
       DELETE FROM members;
       DELETE FROM target_quarters;
@@ -43,13 +43,11 @@ describe('Target payments', () => {
     ).run(Date.now());
   });
 
-  it('records a payment into target_payments (not contributions) and reflects it in the standing, even with no obligation set', () => {
+  it('records a payment into target_payments and reflects it in the standing, even with no obligation set', () => {
     recordPayment('m-alice', quarterId, null, 100000, 1783000000000, 'cash', 'first', 'admin');
 
     const inTarget = db.prepare('SELECT COUNT(*) AS n FROM target_payments WHERE deleted_at IS NULL').get() as { n: number };
-    const inContrib = db.prepare('SELECT COUNT(*) AS n FROM contributions').get() as { n: number };
     expect(inTarget.n).toBe(1);
-    expect(inContrib.n).toBe(0);
 
     const standing = getMemberStanding('m-alice').find((s) => s.quarter.id === quarterId)!;
     expect(standing.obligation).toBe(0); // no obligation set

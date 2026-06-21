@@ -18,9 +18,9 @@ export async function getActivityFeed(limit: number = 10): Promise<ActivityItem[
   // Get recent contributions
   const contributions = db
     .prepare(
-      `SELECT id, member_id, amount, date as timestamp, recorded_by FROM contributions
+      `SELECT id, member_id, amount, date_paid as timestamp, recorded_by FROM target_payments
        WHERE deleted_at IS NULL
-       ORDER BY date DESC LIMIT ?`
+       ORDER BY date_paid DESC LIMIT ?`
     )
     .all(limit) as any[];
 

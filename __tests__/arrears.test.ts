@@ -19,7 +19,7 @@ describe('Arrears & Obligations', () => {
     // Clean up
     db.exec(`
       PRAGMA foreign_keys=OFF;
-      DELETE FROM contributions; DELETE FROM target_payments;
+      DELETE FROM target_payments;
       DELETE FROM members;
       DELETE FROM target_quarters;
       DELETE FROM target_months;

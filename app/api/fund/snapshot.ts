@@ -17,7 +17,7 @@ export interface FundSnapshot {
 export async function getFundSnapshot(): Promise<FundSnapshot> {
   // Get total contributions
   const totalContributions =
-    ((db.prepare('SELECT SUM(amount) as total FROM contributions WHERE deleted_at IS NULL').get() as any)
+    ((db.prepare('SELECT SUM(amount) as total FROM target_payments WHERE deleted_at IS NULL').get() as any)
       .total || 0);
 
   // Get total expenses
@@ -46,7 +46,7 @@ export async function getFundSnapshot(): Promise<FundSnapshot> {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const thisMonthContributions =
     ((db.prepare(
-      'SELECT SUM(amount) as total FROM contributions WHERE date >= ? AND deleted_at IS NULL'
+      'SELECT SUM(amount) as total FROM target_payments WHERE date_paid >= ? AND deleted_at IS NULL'
     ).get(monthStart) as any).total || 0);
 
   return {
